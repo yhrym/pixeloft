@@ -143,7 +143,9 @@ let OX, OY, CW, CH, L, LZ, FB, ZB;
 const makeTarget = (ox, oy, w, h) => ({ ox, oy, w, h, L: new Uint16Array(w * h), LZ: new Uint8Array(w * h), FB: new Uint16Array(w * h), ZB: new Uint8Array(w * h) });
 let bx0, by0, bx1, by1;
 let CUR_T = null;
-function setTarget(t) { CUR_T = t; OX = t.ox; OY = t.oy; CW = t.w; CH = t.h; L = t.L; LZ = t.LZ; FB = t.FB; ZB = t.ZB; bx0 = CW; by0 = CH; bx1 = -1; by1 = -1; }
+// 描く範囲(画素。x0・y0は含む、x1・y1は含まない)。既定は画面ぜんぶ。renderWorldが見える所だけに絞る
+let CX0 = 1, CY0 = 1, CX1 = 1, CY1 = 1;
+function setTarget(t) { CUR_T = t; OX = t.ox; OY = t.oy; CW = t.w; CH = t.h; CX0 = 1; CY0 = 1; CX1 = CW - 1; CY1 = CH - 1; L = t.L; LZ = t.LZ; FB = t.FB; ZB = t.ZB; bx0 = CW; by0 = CH; bx1 = -1; by1 = -1; }
 const OFFICE = makeTarget(OFFICE_OX, OFFICE_OY, OFFICE_W, OFFICE_H);
 setTarget(OFFICE);
 // TR: 置き物を転置(x↔yを入れ替え=画面の鏡像)で描いているあいだの原点[x,y]。PX・PY・wpが座標を入れ替え、boxは左右の面の色を入れ替えて明るさの向きを保つ。それ以外はnull
@@ -156,7 +158,7 @@ let CUR_AREA = 254;
 let GHOST = false; // trueのあいだに確定する画素は市松に間引く(離席中の人を半分すけて見せる)
 function lp(x, y, c) {
   x = Math.round(x); y = Math.round(y); // 歩く人は小数の位置を持つので、ここで画素にそろえる
-  if (x < 1 || y < 1 || x >= CW - 1 || y >= CH - 1 || !c) return;
+  if (x < CX0 || y < CY0 || x >= CX1 || y >= CY1 || !c) return;
   const i = y * CW + x;
   L[i] = c; LZ[i] = CUR_AREA;
   if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y;
@@ -1167,19 +1169,25 @@ function shadowRect(X0, Y0, X1, Y1, h) {
 const slabFace = Z => (Z === -2 ? 'e' : Z === -SLAB + 1 ? 'n' : 'Z');
 function drawFloor(f) {
   CUR_AREA = 255;
+  // 描く範囲(CX0〜CY1)に入る列だけ回す。行Yごとに、画面xが範囲に入るXと、画面yが範囲に入るX(スラブの深さ分と余白を足す)の重なり
+  const rowX = Y => [Math.max(XB, CX0 - 3 - OX + Y, 2 * (CY0 - OY - 12) - Y), Math.min(XE, CX1 + 3 - OX + Y + 1, 2 * (CY1 - OY + 12) - Y + 1)];
   // 床スラブ(輪切りの断面はコンクリート)。床の外に面したカメラ側(+X・+Y)の辺
-  for (let Y = YA; Y < YE; Y++) for (let X = XB; X < XE; X++) {
-    if (!f.floorC[fIdx(X, Y)]) continue;
-    if (!floorAtF(f, X + 1, Y)) for (let Z = -SLAB; Z <= 0; Z++) wp(X + 1, Y, Z, cc(Z === 0 ? 'b' : Z === -1 ? 'Z' : slabFace(Z)));
-    if (!floorAtF(f, X, Y + 1)) for (let Z = -SLAB; Z <= 0; Z++) wp(X, Y + 1, Z, cc(Z === 0 ? 'b' : Z === -2 ? 'd' : Z === -SLAB + 1 ? 'Z' : 'X'));
+  for (let Y = YA; Y < YE; Y++) for (let X = rowX(Y)[0], xe = rowX(Y)[1]; X < xe; X++) {
+    const i = fIdx(X, Y); if (!f.floorC[i]) continue;
+    if (X + 1 >= XE || !f.floorC[i + 1]) for (let Z = -SLAB; Z <= 0; Z++) wp(X + 1, Y, Z, cc(Z === 0 ? 'b' : Z === -1 ? 'Z' : slabFace(Z)));
+    if (Y + 1 >= YE || !f.floorC[i + FW]) for (let Z = -SLAB; Z <= 0; Z++) wp(X, Y + 1, Z, cc(Z === 0 ? 'b' : Z === -2 ? 'd' : Z === -SLAB + 1 ? 'Z' : 'X'));
   }
   flush(false);
-  for (let Y = YA; Y < YE; Y++) for (let X = XB; X < XE; X++) {
+  for (let Y = YA; Y < YE; Y++) for (let X = rowX(Y)[0], xe = rowX(Y)[1]; X < xe; X++) {
     const i = fIdx(X, Y); let c = f.floorC[i]; if (!c) continue;
     const a = f.areaMap[i];
-    if (SH[i] || !(floorAtF(f, X - 1, Y) && floorAtF(f, X - 2, Y))) c = DK[c]; // 影と、奥の壁ぎわ2マス
+    if (SH[i] || !(X - 2 >= XB && f.floorC[i - 1] && f.floorC[i - 2])) c = DK[c]; // 影と、奥の壁ぎわ2マス
     CUR_AREA = f.outAreas.has(a) ? 255 : a;
-    wp(X, Y, 0, c);
+    // wp(X, Y, 0, c)と同じ(TRは無し・整数の座標)。床は1画素ずつ数十万回呼ぶのでlpを展開
+    const x = OX + X - Y, y = OY + ((X + Y) >> 1);
+    if (x < CX0 || y < CY0 || x >= CX1 || y >= CY1) continue;
+    const j = y * CW + x; L[j] = c; LZ[j] = CUR_AREA;
+    if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y;
   }
   CUR_AREA = 255;
   flush();
@@ -1960,14 +1968,26 @@ function drawLowTable2(X, Y, plant) {
   flush(true, 'U');
   if (plant) plantSmallOn(X, Y, 7); else mugOnDesk(X - 1, Y, 7, 'w');
 }
+// 描いてある範囲(世界の画素)。大きな床では、見える所に余白(各辺で画面の1/8、最小48画素)を足した矩形だけ描き、カメラがはみ出したらblitが描き直す
+// shortcut: 小さいウィンドウ(ミニ表示)が開いているあいだは全面を描く(ミニは自分の席のまわりを別に切り出すため)。worldCanvas()は範囲の外が古いまま
+let RR = { x0: 0, y0: 0, x1: OFFICE_W, y1: OFFICE_H };
+function wantRect() {
+  if (mini) return { x0: 0, y0: 0, x1: OFFICE_W, y1: OFFICE_H };
+  const vw = innerWidth / view.s, vh = innerHeight / view.s, mx = Math.max(48, vw / 8), my = Math.max(48, vh / 8);
+  return { x0: Math.max(0, Math.floor(view.x - mx)), y0: Math.max(0, Math.floor(view.y - my)), x1: Math.min(OFFICE_W, Math.ceil(view.x + vw + mx)), y1: Math.min(OFFICE_H, Math.ceil(view.y + vh + my)) };
+}
+const rectHas = (r, x0, y0, x1, y1) => x0 >= r.x0 && y0 >= r.y0 && x1 <= r.x1 && y1 <= r.y1;
 function renderWorld() {
   const f = FL[FLOOR];
   if (PAL_N !== palState.n) buildPalettes(); // 好きな色が増えていたらパレットを作り直す
-  FB.fill(0); ZB.fill(0);
+  const R = RR = wantRect(), rw = R.x1 - R.x0;
+  if (rw <= 0 || R.y1 <= R.y0) return;
+  for (let y = R.y0; y < R.y1; y++) { FB.fill(0, y * OFFICE_W + R.x0, y * OFFICE_W + R.x1); ZB.fill(0, y * OFFICE_W + R.x0, y * OFFICE_W + R.x1); }
   const objs = buildObjects(f);
   SH.fill(0);
   for (const o of objs) { if (o.z1 >= 4 && o.area !== 'out' && o.block !== false) shadowRect(o.x0, o.y0, o.x1, o.y1, Math.min(o.z1, 30) * 0.5); }
   setTarget(OFFICE);
+  CX0 = Math.max(1, R.x0); CY0 = Math.max(1, R.y0); CX1 = Math.min(OFFICE_W - 1, R.x1); CY1 = Math.min(OFFICE_H - 1, R.y1);
   CUR_AREA = 255;
   drawFloor(f);
   const me = myPlace();
@@ -1978,17 +1998,19 @@ function renderWorld() {
   else if (hoverSeat) { const st = seatById(hoverSeat); if (st && !occupantOf(st)) floorRing(st.cx, st.cy, 9, 'W', 'W', 'f'); }
   for (const w of f.walls) if (w.kind === 'window' || w.kind === 'outer') drawBackWall(f, w);
   drawPlateMounts(f);
-  for (const o of sortObjects(objs)) { CUR_AREA = o.area === 'out' ? 255 : areaAt(...(o.pt || [(o.x0 + o.x1) >> 1, (o.y0 + o.y1) >> 1])); o.draw(); flush(); }
+  for (const o of sortObjects(objs)) {
+    if (o.sx1 + OX < R.x0 - 48 || o.sx0 + OX > R.x1 + 48 || o.sy1 + OY < R.y0 - 48 || o.sy0 + OY > R.y1 + 48) continue; // 範囲の外(絵の広がりに余白48)
+    CUR_AREA = o.area === 'out' ? 255 : areaAt(...(o.pt || [(o.x0 + o.x1) >> 1, (o.y0 + o.y1) >> 1])); o.draw(); flush(); }
   CUR_AREA = 255; drawOutdoorRain(f);
   const night = TIME === 'night', lit = litAreas(f);
   const P = RGBA;
-  for (let i = 0; i < FB.length; i++) {
+  for (let y = R.y0; y < R.y1; y++) for (let i = y * OFFICE_W + R.x0, e = y * OFFICE_W + R.x1; i < e; i++) {
     const c = FB[i];
     if (!c) { worldU32[i] = 0; continue; }
     const z = ZB[i];
     worldU32[i] = z === 255 ? P.out[c] : (night && !lit.has(z)) ? P.dim[c] : P.lit[c];
   }
-  worldCtx.putImageData(worldImg, 0, 0);
+  worldCtx.putImageData(worldImg, 0, 0, R.x0, R.y0, rw, R.y1 - R.y0);
 }
 
 /* ============================================================
@@ -2332,6 +2354,7 @@ function buildBack() {
   BACK = MAP.backdrop === 'city' || MAP.backdrop === 'countryside' ? makeBackdrop({ kind: MAP.backdrop, name: MAP.name || '', bounds: { XB, XE, YA, YE }, ox: OFFICE_OX, oy: OFFICE_OY, slab: SLAB, box: BOX, time: TIME, weather: WEATHER, sky: CUR_SKY.x }) : null;
 }
 function blit() {
+  if (!rectHas(RR, Math.max(0, view.x - 2), Math.max(0, view.y - 2), Math.min(OFFICE_W, view.x + innerWidth / view.s + 2), Math.min(OFFICE_H, view.y + innerHeight / view.s + 2))) renderWorld(); // 描いてある範囲からカメラが出た
   const fx = Math.floor(view.x), fW = Math.floor(view.y), W = sceneEl.width, H = sceneEl.height;
   const fy = fW + (FLOORS.length - 1 - FLS.indexOf(FL[FLOOR])) * FLOOR_H; // 下の階は同じ所に描くので、雨・雪は階ぶんだけ上に見える。最上階の絵はfWのまま
   sctx.fillStyle = CUR_SKY.x; sctx.fillRect(0, 0, W, H);
@@ -2441,7 +2464,7 @@ function renderOverlay() {
     const meet = !!MEET_URLS[room.id]; // Meetは設定のある部屋だけ
     if (HAS_SEATS.has(room.id)) inner += `<span class="cnt">${_t('engine.plate.count', { n: roomCount(room.id) })}</span>`; // 席のない部屋(給湯コーナーなど)は人数を出さない
     if (TALK_ROOMS.includes(logicalRoom(room.id)) && logicalRoom(room.id) !== myRoomId()) inner += TALK_MARK; // 自分の部屋の発言はログで読めるので出さない
-    if (meet) inner += `<button class="meet" data-meet="${esc(room.id)}" aria-label="${esc(_t('engine.plate.meet', { room: room.name }))}">Meet</button>`;
+    if (meet) inner += `<button class="meet" data-meet="${esc(room.id)}" aria-label="${esc(_t('engine.plate.meet', { room: room.name }))}">${_t('engine.hud.callBtn')}</button>`;
     html.push(`<div class="plate${here ? ' here' : ''}${meet ? '' : ' nomeet'}" data-plate="${esc(room.id)}" style="--x:${NX(x)};--y:${y}">${inner}</div>`);
   }
   // 会議室: 入る(どこを押しても次の空き椅子へ)

@@ -62,7 +62,7 @@ const line = (ctx: CanvasRenderingContext2D, w: { axis: "x" | "y"; at: number; a
   ctx.stroke();
 };
 
-const box = "rounded border border-neutral-400 px-2 py-1";
+const box = "rounded border border-neutral-400 px-2 py-1 max-w-full";
 const btn = "rounded border border-neutral-500 bg-white px-2 py-1 text-sm hover:bg-neutral-100 disabled:opacity-40";
 const btnOn = "rounded border border-blue-700 bg-blue-700 px-2 py-1 text-sm text-white";
 
@@ -433,6 +433,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white text-neutral-900" style={{ fontFamily: "system-ui, sans-serif" }}>
+      <p role="note" className="hidden bg-amber-100 px-3 py-2 text-sm max-[899px]:block">{T("editor.mobileNotice")}</p>
       <header className="flex flex-wrap items-center gap-2 border-b border-neutral-300 p-2">
         {backHref && <a className="text-sm underline" href={backHref}>{T("common.back")}</a>}
         <strong>{T("editor.title")}</strong>
@@ -465,9 +466,9 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
         <span className="ml-auto text-xs text-neutral-500">{T("editor.help")}</span>
       </nav>
 
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 max-[899px]:flex-col max-[899px]:overflow-auto">
         {tool === "item" && (
-          <aside className="flex w-48 shrink-0 flex-col border-r border-neutral-300 p-2">
+          <aside className="flex w-48 shrink-0 flex-col max-[899px]:h-40 max-[899px]:w-full max-[899px]:border-b border-r border-neutral-300 p-2">
             <input className={box} placeholder={T("editor.filter")} value={filter} onChange={(e) => setFilter(e.currentTarget.value)} aria-label={T("editor.filter")} />
             <ul className="mt-2 min-h-0 flex-1 overflow-auto text-sm">
               {TYPES.filter((k) => lab("catalog.", k).toLowerCase().includes(filter.toLowerCase()) || k.includes(filter.toLowerCase())).map((k) => (
@@ -476,7 +477,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
             </ul>
           </aside>
         )}
-        <div ref={wrap} className="relative min-w-0 flex-1 overflow-hidden">
+        <div ref={wrap} className="relative min-w-0 flex-1 overflow-hidden max-[899px]:h-[60vh] max-[899px]:flex-none">
           <canvas
             ref={canvas} width={size.w} height={size.h} tabIndex={0} aria-label={T("editor.canvas")}
             className="absolute inset-0 touch-none"
@@ -484,7 +485,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
             onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onContextMenu={(e) => e.preventDefault()}
           />
         </div>
-        <aside className="flex w-[30rem] shrink-0 flex-col border-l border-neutral-300">
+        <aside className="flex w-[30rem] shrink-0 flex-col max-[899px]:w-full border-l border-neutral-300">
           <div className="h-80 shrink-0 border-b border-neutral-300"><Preview src={previewSrc} map={map} blocked={problems.length ? T("editor.previewFix") : null} failed={T("editor.previewFailed")} /></div>
           <div className="min-h-0 flex-1 overflow-auto p-2 text-sm">
             {!sel && <>

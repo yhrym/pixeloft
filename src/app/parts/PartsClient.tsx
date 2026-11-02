@@ -44,12 +44,13 @@ export function PartsClient({ parts: initial, look, meId, isAdmin, m }: { parts:
                 <Thumb part={p} look={look} />
                 <div className="mt-1 font-bold">{p.name}</div>
                 <div className="text-xs text-neutral-600">{m["parts.by"].replace("{name}", p.createdByName)}</div>
-                {(isAdmin || p.createdById === meId) && (
-                  <div className="mt-1 flex gap-3 text-sm">
+                <div className="mt-1 flex gap-3 text-sm">
+                  <a className="underline" href={`/parts/new?from=${p.id}`}>{m["parts.copyAndEdit"]}</a>
+                  {(isAdmin || p.createdById === meId) && <>
                     <a className="underline" href={`/parts/${p.id}/edit`}>{m["parts.edit"]}</a>
                     <button type="button" className="underline" onClick={() => remove(p)}>{m["parts.delete"]}</button>
-                  </div>
-                )}
+                  </>}
+                </div>
               </li>
             ))}
             {parts.every((p) => p.kind !== k) && <li className="text-sm text-neutral-500">{m["parts.empty"]}</li>}

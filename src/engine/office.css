@@ -436,6 +436,25 @@
 .vo-page .hud-sheet .acts { display: flex; flex-wrap: wrap; gap: 6px; }
 .vo-page .vo-mode-phone .toast { bottom: 72px; width: calc(100vw - 24px); }
 .vo-page .vo-mode-phone .toast.call { bottom: auto; top: 52px; }
+/* 指で押す画面は、押す所を40px以上にする。シートを開いている間は入室の案内文がシートに重なるので隠す */
+@media (pointer: coarse) {
+  .vo-page .pbtn, .vo-page .me-status, .vo-page .call-chip { min-height: 40px; min-width: 40px; }
+  .vo-page .pop .x, .vo-page .dress .preview-direction button, .vo-page .loglist .ib { min-width: 40px; min-height: 40px; }
+  .vo-page .sw button, .vo-page .sw input.pick { min-width: 40px; min-height: 40px; }
+  .vo-page { --hud-top: 44px; }
+  .vo-page .zoom .pbtn { height: 40px; }
+  .vo-page .zoom .floors { margin-bottom: 4px; }
+}
+/* 横向きのスマホ(高さが低い)は、ズームの倍率表示と「全体」を畳んで縦に収める */
+@media (pointer: coarse) and (max-height: 500px) {
+  .vo-page .zoom .lv, .vo-page .zoom .fit { display: none; }
+  .vo-page .zoom { bottom: 74px; }
+}
+@media (pointer: coarse) {
+  .vo-page #memoIn { min-height: 40px; }
+  .vo-page .presence, .vo-page .me-memo, .vo-page .dress a.draw { min-height: 40px; display: inline-flex; align-items: center; }
+  .vo-page .vo-mode-phone:has(.hud-sheet.open) .hud-enter.pick .t { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .vo-page .bub, .vo-page .fxicon, .vo-page .fxicon.wave, .vo-page .fxicon.wavebig, .vo-page .fxicon.emo, .vo-page .fxicon.emo canvas { animation: none; } /* .waveは詳細度で上の指定に勝っていたので名指しで止める */
   .vo-page .vo-mode-phone .hud-sheet { transition: none; }

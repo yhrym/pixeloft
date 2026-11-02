@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PAL, mkMap, setCustomParts } from "@/engine/sprites.js";
-import { ACC_X_MIN, ACC_Y_MAX, ACC_Y_MIN, allowedChars, HAIR_PAD_MAX, HAIR_Y_MIN, NAME_MAX, ROLE_CHARS, validatePart, type PartKind } from "@/lib/parts/validate";
+import { ACC_X_MIN, ACC_Y_MAX, ACC_Y_MIN, allowedChars, HAIR_PAD_MAX, HAIR_Y_MIN, NAME_MAX, ROLE_CHARS, validatePart, copyName, type PartKind } from "@/lib/parts/validate";
 import { drawSitting, H, layout, S, W, X0, Y0, type Look, type Msgs, type PartView } from "./lib";
 
 type Data = { pad?: number; x?: number; y?: number; hat?: boolean; f: string[]; b?: string[] | null };
@@ -12,14 +12,16 @@ const fit = (rows: string[], w: number, n: number) => Array.from({ length: n }, 
 /** 左右の余白がd列ふえた(負なら減った)ときの行 */
 const pad = (r: string, d: number) => (d >= 0 ? ".".repeat(d) + r + ".".repeat(d) : r.slice(-d, r.length + d));
 
-export function PartEditor({ kind, part, parts, look, m }: { kind: PartKind; part: PartView | null; parts: PartView[]; look: Look; m: Msgs }) {
-  const init = (part?.data ?? {}) as Data;
-  const [name, setName] = useState(part?.name ?? "");
+/** from: コピー元(新規として保存する。絵と名前の初期値だけ使う) */
+export function PartEditor({ kind, part, from, parts, look, m }: { kind: PartKind; part: PartView | null; from?: PartView | null; parts: PartView[]; look: Look; m: Msgs }) {
+  const seed = part ?? from;
+  const init = (seed?.data ?? {}) as Data;
+  const [name, setName] = useState(part?.name ?? (from ? copyName(m["parts.copyName"], from.name) : ""));
   const [hairPad, setHairPad] = useState(init.pad ?? 0);
   const [accX, setAccX] = useState(init.x ?? 0);
   const [y, setY] = useState(init.y ?? (kind === "hair" ? 0 : kind === "ac" ? 6 : 12));
   const [hat, setHat] = useState(!!init.hat);
-  const [hasBack, setHasBack] = useState(kind !== "ac" || !part || !!init.b);
+  const [hasBack, setHasBack] = useState(kind !== "ac" || !seed || !!init.b);
   const lay0 = layout(kind, { pad: init.pad ?? 0, x: init.x ?? 0, y: 0 });
   const [f, setF] = useState(() => fit(init.f ?? [], lay0.w, lay0.rows));
   const [b, setB] = useState(() => fit(init.b ?? [], lay0.w, lay0.rows));

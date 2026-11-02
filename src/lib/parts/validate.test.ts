@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validatePart } from "./validate.ts";
+import { copyName, validatePart } from "./validate.ts";
 
 const row = (w: number, ch = ".") => ch.repeat(w);
 const hair = (over: Record<string, unknown> = {}) => ({ kind: "hair", name: "テスト", data: { pad: 1, y: -2, f: [row(16, "H"), row(16)], b: [row(16, "h")], ...over } });
@@ -84,4 +84,12 @@ test("__proto__などは読まず、余計な項目は捨てる", () => {
   assert.deepEqual(Object.keys(r.part.data).sort(), ["b", "f", "pad", "y"]);
   assert.equal(({} as Record<string, unknown>).pad, undefined);
   assert.equal(err(JSON.parse('{"__proto__":{"kind":"hair"},"name":"a","data":{}}')), "parts.err.kind");
+});
+
+test("コピーの名前は20文字に収める(元の名前を切り、絵文字などは1文字と数える)", () => {
+  assert.equal(copyName("{name}のコピー", "帽子"), "帽子のコピー");
+  assert.equal(copyName("Copy of {name}", "Cap"), "Copy of Cap");
+  assert.equal(copyName("{name}のコピー", "あ".repeat(20)), "あ".repeat(16) + "のコピー");
+  assert.equal(copyName("Copy of {name}", "x".repeat(20)), "Copy of " + "x".repeat(12));
+  assert.equal(copyName("{name}のコピー", "😀".repeat(20)), "😀".repeat(16) + "のコピー");
 });

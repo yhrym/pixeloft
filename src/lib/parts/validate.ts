@@ -16,6 +16,8 @@ export type PartData = HairData | OutfitData | AccData;
 export type PartInput = { kind: PartKind; name: string; data: PartData };
 
 export const NAME_MAX = 20;
+/** コピーの名前。tmplの{name}に元の名前を入れる。NAME_MAX文字(コードポイント)に収まるよう、元の名前のほうを切る */
+export const copyName = (tmpl: string, name: string) => tmpl.replace("{name}", [...name].slice(0, Math.max(0, NAME_MAX - [...tmpl.replace("{name}", "")].length)).join(""));
 export const ROWS_MAX = 20;
 export const HAIR_PAD_MAX = 4;
 export const HAIR_Y_MIN = -6;

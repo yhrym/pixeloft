@@ -9,7 +9,7 @@ export type Look = Record<"hair" | "hc" | "sk" | "cl" | "pt" | "ot" | "ac", stri
 export const PARTS_MSG_KEYS = [
   "parts.title", "parts.sub", "parts.kind.hair", "parts.kind.ot", "parts.kind.ac", "parts.new", "parts.by", "parts.edit", "parts.delete", "parts.deleteConfirm",
   "parts.empty", "parts.toOffice", "parts.toList", "parts.editor.new", "parts.editor.edit", "parts.name", "parts.front", "parts.back", "parts.tool.pencil",
-  "parts.tool.eraser", "parts.tool.pick", "parts.clear", "parts.copy", "parts.roleColors", "parts.fixedColors", "parts.pad", "parts.y", "parts.hat",
+  "parts.tool.eraser", "parts.tool.pick", "parts.clear", "parts.copy", "parts.copyAndEdit", "parts.copyName", "parts.roleColors", "parts.fixedColors", "parts.pad", "parts.y", "parts.hat",
   "parts.hasBack", "parts.preview", "parts.save", "parts.saving", "parts.network", "parts.hint",
   "parts.err.shape", "parts.err.kind", "parts.err.name", "parts.err.char", "parts.err.range", "parts.err.empty", "parts.err.limit", "parts.err.notFound", "parts.err.forbidden",
 ] as const;

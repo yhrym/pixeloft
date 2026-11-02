@@ -3,3 +3,10 @@
 body {
   font-family: "DotGothic16", sans-serif;
 }
+
+/* touch: tap targets of at least 40px outside the office HUD (which sizes its own) */
+@media (pointer: coarse) {
+  body :where(a, button, select, summary, input:not([type="radio"], [type="checkbox"])):not(.vo-page *) { min-height: 40px; min-width: 40px; }
+  body :where(a, button, summary):not(.vo-page *) { display: inline-flex; align-items: center; }
+  body :where(input[type="text"], input[type="number"], input[type="password"], input:not([type]), select, textarea):not(.vo-page *) { font-size: 16px; }
+}

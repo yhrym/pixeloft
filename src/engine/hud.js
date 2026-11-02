@@ -36,7 +36,7 @@ export const hudHtml = t => `<div id="app">
         <h2 class="log-tab" id="logTitle"></h2>
         <span class="sp"></span>
         <span class="cnt" id="logCount"></span><span class="badge" id="unread" hidden></span><span class="at-badge" id="unreadAt" hidden>${t('engine.atYou')}</span>
-        <button class="pbtn sm meetbtn" type="button" id="islandMeet" aria-label="${t('engine.hud.meet')}" hidden>Meet</button>
+        <button class="pbtn sm meetbtn" type="button" id="islandMeet" aria-label="${t('engine.hud.meet')}" hidden>${t('engine.hud.callBtn')}</button>
         <button class="pbtn sm ghost chev" type="button" id="logHead" aria-expanded="false" aria-controls="logList" aria-label="${t('engine.hud.logExpand')}">▲</button>
       </div>
       <ol class="loglist" id="logList"></ol>
