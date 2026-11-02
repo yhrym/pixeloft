@@ -1,0 +1,627 @@
+/*
+  バーチャルオフィスだけのCSS。全部 .vo-page の下に閉じてある。画面の種類は、エンジンの root に付く .vo-mode-phone / .vo-mode-mini / .vo-mode-desk で分ける。
+  :root の変数は .vo-page に、@keyframes は名前がぶつからないよう vo- を付けた。
+*/
+.vo-page {
+  --s: 2; --tagfs: 13px;
+  /* 文字は読みやすさ優先の書体。BIZ UDPゴシックはWindows 10以降、Macはヒラギノ。ドット文字(DotGothic16)は16pxの整数倍の時計などだけ */
+  --vo-font: "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --k: #221f2c; --K: #3e3a4a; --o: #fbf9f3; --m: #c3c7ce; --M: #838995;
+  --N: #37486f; --l: #6dab50; --L: #3f7c3e; --Y: #fff3c4; --y: #f4c651; --yel: #f4c651; --cream: #f0e8d6; --V: #5f3a25; --r: #d24e4b;
+  --st-work: #6dab50; --st-focus: #a585d1; --st-break: #f4c651; --st-meet: #6b95d6;
+  --hud-top: 32px;
+  color-scheme: light;
+}
+.vo-page [hidden] { display: none !important; }
+.vo-page {
+  position: fixed; inset: 0;
+  background: #7fae5c; color: var(--k); overflow: hidden;
+  font-family: var(--vo-font); font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+}
+.vo-page button, .vo-page input { font: inherit; color: inherit; }
+.vo-page :where(button, input, a, [tabindex]):focus-visible { outline: 2px solid var(--yel); outline-offset: 2px; }
+/* ---------- scene: full-screen canvas + camera ---------- */
+.vo-page #app { position: fixed; inset: 0; overflow: hidden; touch-action: none; }
+.vo-page .vo-mode-mini #app { display: none; }
+.vo-page #ground { position: absolute; inset: 0; image-rendering: pixelated; background-repeat: repeat; }
+.vo-page #scene { position: absolute; left: 0; top: 0; image-rendering: pixelated; transform-origin: 0 0; }
+.vo-page #world { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.vo-page #ov, .vo-page #fxov { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.vo-page #app.dragging, .vo-page #app.dragging * { cursor: grabbing !important; }
+/* ---------- pixel ui parts ---------- */
+.vo-page .win { background: var(--N); color: var(--o); border: 2px solid var(--o); box-shadow: 0 0 0 2px var(--k); }
+.vo-page .pbtn {
+  font-family: var(--vo-font); font-weight: 600; font-size: 13px; line-height: 1; padding: 5px 9px 6px;
+  background: var(--o); color: var(--k); border: 2px solid var(--k); box-shadow: inset -2px -2px 0 var(--m);
+  cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+}
+.vo-page .pbtn:hover { background: var(--Y); }
+.vo-page .pbtn:active { box-shadow: inset 2px 2px 0 var(--m); }
+.vo-page .pbtn:disabled { opacity: 0.55; cursor: default; background: var(--o); }
+.vo-page .pbtn.go { background: var(--l); box-shadow: inset -2px -2px 0 var(--L); }
+.vo-page .pbtn.go:hover { background: #86c06a; }
+.vo-page .pbtn.ghost { background: transparent; color: var(--o); border-color: var(--o); box-shadow: none; }
+.vo-page .pbtn.ghost:hover { background: rgba(251, 249, 243, 0.14); }
+.vo-page .pbtn.sm { font-size: 12px; padding: 3px 7px 4px; }
+.vo-page .sq { display: inline-block; width: 10px; height: 10px; flex: none; outline: 1px solid var(--k); }
+.vo-page .sq.work { background: var(--st-work); }
+.vo-page .sq.focus { background: var(--st-focus); }
+.vo-page .sq.break { background: var(--st-break); }
+.vo-page .sq.meet { background: var(--st-meet); }
+.vo-page .sq.off { background: var(--m); }
+.vo-page .px { image-rendering: pixelated; }
+.vo-page .note { margin: 8px 0 0; font-size: 12px; color: var(--m); }
+.vo-page .badge { display: inline-block; padding: 1px 5px 2px; background: var(--r); color: var(--o); font-size: 12px; line-height: 1.2; }
+/* ---------- top bar ---------- */
+.vo-page .hud-top {
+  position: absolute; left: 0; right: 0; top: 0; height: var(--hud-top); z-index: 20;
+  display: flex; align-items: center; gap: 14px; padding: 0 10px;
+  background: var(--N); color: var(--o); border-bottom: 2px solid var(--o); box-shadow: 0 2px 0 var(--k);
+  font-size: 14px; white-space: nowrap;
+}
+/* 見出しはZen Kaku Gothic New。DotGothic16は16pxでも「バ」の濁点が「パ」の丸と見分けられないので使わない(時計の数字だけ16pxのドット文字) */
+.vo-page .brand { display: flex; align-items: center; gap: 7px; font-size: 16px; font-weight: 700; }
+.vo-page .clock { line-height: 16px; }
+/* ロゴのRは#d24e4bだと紺のバー(#37486f)の上で2.1:1しかないので明るめの赤。#ff7a73は3.6:1 */
+.vo-page .clock { font-family: "DotGothic16", sans-serif; font-weight: 400; font-size: 16px; letter-spacing: 0.06em; }
+.vo-page .weather { display: flex; align-items: center; gap: 4px; color: var(--m); font-size: 13px; }
+.vo-page .weather canvas { width: 22px; height: 18px; }
+.vo-page .sp { flex: 1; }
+.vo-page .presence { display: flex; align-items: center; gap: 8px; background: none; border: 0; color: var(--o); cursor: pointer; padding: 2px 6px; font-size: 13px; }
+.vo-page .presence:hover { background: rgba(251, 249, 243, 0.14); }
+.vo-page .faces { display: flex; padding-left: 6px; }
+.vo-page .faces canvas { width: 22px; height: 22px; border: 2px solid var(--o); margin-left: -6px; background: #ccd8e2; }
+.vo-page .faces .more { margin-left: -6px; width: 26px; height: 22px; border: 2px solid var(--o); background: var(--k); color: var(--o); font-size: 12px; display: grid; place-items: center; }
+.vo-page .hud-top .pbtn { padding: 3px 8px 4px; font-size: 12px; }
+@media (max-width: 1000px) {
+  .vo-page .brand span, .vo-page .weather span { display: none; }
+  .vo-page .hud-top { gap: 10px; }
+}
+@media (max-width: 760px) {
+  .vo-page #miniBtn { display: none; }
+}
+/* ---------- zoom ---------- */
+.vo-page .zoom { position: absolute; right: 10px; bottom: 84px; z-index: 19; display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.vo-page .zoom .pbtn { width: 44px; height: 32px; padding: 0; font-family: "DotGothic16", sans-serif; font-weight: 400; font-size: 16px; }
+.vo-page .zoom .lv { font-size: 12px; text-align: center; color: var(--o); background: rgba(34, 31, 44, 0.75); padding: 2px 0; }
+.vo-page .zoom .pbtn.fit, .vo-page .zoom .pbtn.me { font-family: var(--vo-font); font-size: 12px; }
+.vo-page .zoom .floors { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; } /* 見る階(マップのfloorsから作る)。押してある階は黄色くへこませる */
+.vo-page .zoom .floors .pbtn[aria-pressed="true"] { background: var(--Y); box-shadow: inset 2px 2px 0 var(--m); cursor: default; }
+.vo-page .vo-root.out .zoom .me { display: none; } /* 入室前は寄せる自分がいない */
+/* ---------- bottom row: me / say / log ---------- */
+.vo-page .hud-bottom { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 20; display: flex; align-items: flex-end; gap: 10px; pointer-events: none; }
+.vo-page .hud-bottom > * { pointer-events: auto; }
+/* DOM order is me → say → log so Tab reaches the HUD before the scene */
+.vo-page .hud-me { display: flex; align-items: flex-start; gap: 8px; padding: 4px 6px 4px 4px; width: 340px; flex: none; }
+.vo-page .portrait { width: 44px; height: 44px; border: 2px solid var(--o); flex: none; background: #ccd8e2; position: relative; cursor: pointer; }
+.vo-page .portrait canvas { width: 100%; height: 100%; display: block; }
+.vo-page .portrait .sq { position: absolute; right: -3px; bottom: -3px; outline: 2px solid var(--k); }
+.vo-page .me-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.vo-page .me-line { display: flex; align-items: center; gap: 6px; font-size: 13px; flex-wrap: wrap; }
+.vo-page .me-line small { font-size: 12px; color: var(--k); background: var(--l); padding: 1px 4px; }
+.vo-page .me-status { display: inline-flex; align-items: center; gap: 5px; background: none; border: 1px solid var(--M); color: var(--o); padding: 1px 5px; cursor: pointer; font-size: 12px; }
+.vo-page .me-status:hover { border-color: var(--o); }
+.vo-page .me-timer { font-size: 12px; color: var(--o); font-variant-numeric: tabular-nums; }
+.vo-page .me-memo { font-family: var(--vo-font); font-size: 13px; line-height: 1.4; color: #e4e7ec; overflow-wrap: anywhere; cursor: pointer; background: none; border: 0; padding: 0; text-align: left; }
+.vo-page .me-memo.empty { color: var(--m); }
+.vo-page .me-acts { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.vo-page .hud-say input, .vo-page .mini-say input {
+  flex: 1; min-width: 0; background: var(--o); color: var(--k); border: 2px solid var(--k);
+  padding: 5px 8px; font-family: var(--vo-font); font-size: 14px;
+}
+.vo-page .hud-say input::placeholder, .vo-page .mini-say input::placeholder { color: #5d6270; }
+@media (max-width: 1100px) {
+  .vo-page .hud-me { width: 300px; }
+}
+/* ---------- チャットの窓(PCは右下・倍率ボタンの左に1つ。RPGの窓: 角は階段で欠き、影はベタの色をずらす) ---------- */
+/* 閉じると「〇〇のログ」のタブ・人数・Meet・▲＋直近2件を1行ずつ＋入力欄。開くとリストがスクロール。スマホは入力欄とMeetだけ下のバーに出す(下のphoneの段) */
+.vo-page .vo-mode-desk .hud-log { position: absolute; right: 56px; bottom: 0; width: min(400px, calc(100vw - 380px)); display: flex; flex-direction: column; padding: 3px; isolation: isolate; color: var(--o); }
+.vo-page .vo-mode-desk .hud-log::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; background: var(--N); border: 1px solid var(--k); box-shadow: inset 2px 2px 0 #5b6d99, inset -2px -2px 0 #25314d;
+  clip-path: polygon(0 2px, 2px 2px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px));
+}
+.vo-page .vo-mode-desk .hud-log.open { height: min(420px, 55vh); }
+.vo-page .vo-mode-desk .hud-log .pbtn { box-shadow: inset -2px -2px 0 var(--m), 2px 2px 0 #14192b; }
+.vo-page .vo-mode-desk .hud-log .pbtn.go { box-shadow: inset -2px -2px 0 var(--L), 2px 2px 0 #14192b; }
+.vo-page .vo-mode-desk .hud-log .pbtn.ghost { box-shadow: none; }
+.vo-page .log-head { display: flex; align-items: center; gap: 6px; height: 34px; flex: none; padding: 4px 4px 4px 8px; border-bottom: 2px solid #25314d; box-shadow: 0 2px 0 #5b6d99; font-size: 13px; white-space: nowrap; cursor: pointer; }
+.vo-page .log-tab { position: relative; top: -21px; flex: none; margin: 0 4px 0 0; height: 22px; padding: 0 8px; background: var(--cream); color: var(--k); border: 1px solid var(--k); box-shadow: 2px 2px 0 #14192b; font: 400 16px/20px "DotGothic16", var(--vo-font); }
+.vo-page .log-head .cnt { color: var(--m); font-size: 12px; }
+.vo-page .log-head .sp { flex: 1; }
+.vo-page .log-head .at-badge { background: var(--y); color: var(--k); font-size: 12px; font-weight: 700; line-height: 1.2; padding: 1px 5px 2px; }
+.vo-page .log-head .chev { width: 30px; }
+.vo-page .vo-mode-desk .hud-log .loglist { flex: 1 1 auto; min-height: 0; max-height: none; padding: 4px 2px; overflow: hidden; }
+.vo-page .vo-mode-desk .hud-log.open .loglist { overflow-y: auto; }
+.vo-page .hud-log .lg-note { margin: 0 6px 4px; font-size: 12px; }
+/* 閉じているとき: 「ここから未読」を除いた最後の2行だけ、1行ずつ(はみ出しは…) */
+.vo-page .hud-log:not(.open) .loglist > li:not(:nth-last-child(-n + 2 of :not(.unr, .nx))), .vo-page .hud-log:not(.open) .loglist > .unr, .vo-page .hud-log:not(.open) .lg-note,
+.vo-page .hud-log:not(.open) .loglist :is(.rcs, .tb, .tm, .nm2, .nx, .pbtn) { display: none; }
+.vo-page .hud-log:not(.open) .loglist > li { align-items: center; padding-top: 2px; padding-bottom: 2px; }
+.vo-page .hud-log:not(.open) .loglist > li::after { display: none; }
+.vo-page .hud-log:not(.open) .loglist > li.men::before { top: 7px; }
+.vo-page .hud-log:not(.open) .loglist .face { width: 20px; height: 20px; margin: 0; }
+.vo-page .hud-log:not(.open) .loglist :is(.bd, .del) { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.vo-page .hud-log:not(.open) .loglist .tx { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ログの行(PCの窓とスマホのシートで同じ)。名前はやわらかドットの札、区切りは2px刻みの点線 */
+.vo-page .loglist { list-style: none; margin: 0; padding: 0; max-height: min(42vh, 330px); overflow: auto; display: flex; flex-direction: column; position: relative; }
+.vo-page .loglist > li { position: relative; display: flex; gap: 6px; align-items: flex-start; padding: 6px 6px 7px; font-size: 14px; line-height: 1.5; }
+.vo-page .loglist > li::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: repeating-linear-gradient(90deg, #7283ad 0 2px, transparent 2px 4px); }
+.vo-page .loglist > li:focus-visible { outline-offset: -2px; }
+.vo-page .loglist .face { width: 24px; height: 24px; flex: none; margin-top: 2px; border: 1px solid var(--k); background: #ccd8e2; image-rendering: pixelated; }
+.vo-page .loglist .bd { flex: 1; min-width: 0; }
+.vo-page .loglist .hd { display: flex; align-items: center; gap: 6px; min-height: 20px; }
+.vo-page .loglist .nm {
+  flex: none; padding: 0 6px; background: var(--nc); color: var(--k); font: 400 16px/20px "DotGothic16", var(--vo-font);
+  clip-path: polygon(0 2px, 2px 2px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px));
+}
+.vo-page .loglist .tm { margin-left: auto; flex: none; font-size: 12px; color: #aab3cc; font-variant-numeric: tabular-nums; }
+.vo-page .loglist .tx { white-space: pre-wrap; overflow-wrap: anywhere; }
+.vo-page .loglist .lk { color: #a9ccff; text-decoration: underline; text-underline-offset: 2px; }
+.vo-page .loglist .mn { padding: 0 3px; background: rgba(251, 249, 243, 0.16); font-weight: 700; }
+.vo-page .loglist .mn.me { background: var(--y); color: var(--k); }
+/* 自分あての行: 左端に黄色の▶＋薄い黄色 */
+.vo-page .loglist > li.men { padding-left: 20px; color: var(--k); background-image: linear-gradient(var(--Y), var(--Y)); background-position: 16px 0; background-size: calc(100% - 16px) calc(100% - 2px); background-repeat: no-repeat; }
+.vo-page .loglist > li.men::before { content: "▶"; position: absolute; left: 2px; top: 10px; color: var(--y); font-size: 12px; line-height: 1; }
+.vo-page .loglist .men .tm { color: #5a5566; }
+.vo-page .loglist .men .lk { color: #1f4fa8; }
+.vo-page .loglist .men .mn:not(.me) { background: rgba(34, 31, 44, 0.1); }
+.vo-page .loglist .men .rc { color: var(--k); background: #f3e6ae; border-color: var(--M); box-shadow: none; }
+/* リアクションのチップ(押すと付ける/外す。自分が押したものは緑の枠)と、行に重ねると出るツールバー */
+.vo-page .loglist .rcs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.vo-page .loglist .rc { display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px 1px 4px; font-size: 12px; line-height: 14px; background: #2d3d66; color: var(--o); border: 1px solid var(--k); box-shadow: inset 1px 1px 0 #5b6d99; cursor: pointer; }
+.vo-page .loglist .rc b { font-weight: 700; }
+.vo-page .loglist .rc.mine { border-color: #9bd27e; background: #35603f; }
+.vo-page .loglist .rc:hover { border-color: var(--Y); }
+/* ツールバーはその行の1行目(名前の札と時刻)の右端。時刻は隠す。ほかの行には重ねない */
+/* 隠すのはdisplay: noneでなく透明に。display: noneだとTabで行からボタンへ移る瞬間に消えてフォーカスが外れた(タッチでも押したボタンが消える) */
+.vo-page .loglist .tb { display: flex; opacity: 0; pointer-events: none; position: absolute; right: 4px; top: 3px; z-index: 3; gap: 2px; align-items: center; }
+/* 出すのは、マウスのある環境では重ねたときとキーボードのフォーカスだけ(押したあと出たままにしない)、タッチの環境ではタップ(フォーカス) */
+@media (hover: hover) {
+  .vo-page .loglist > li:is(:hover, :focus-visible, :has(:focus-visible)) .tb { opacity: 1; pointer-events: auto; }
+  .vo-page .loglist > li.msg:is(:hover, :focus-visible, :has(:focus-visible)) { background-color: #46588a; }
+  .vo-page .loglist > li.msg:is(:hover, :focus-visible, :has(:focus-visible)) .tm { visibility: hidden; }
+}
+@media (hover: none) {
+  .vo-page .loglist > li:focus-within .tb { opacity: 1; pointer-events: auto; }
+  .vo-page .loglist > li.msg:focus-within { background-color: #46588a; }
+  .vo-page .loglist > li.msg:focus-within .tm { visibility: hidden; }
+}
+.vo-page .loglist .ib { min-width: 24px; height: 24px; padding: 0 1px; background: var(--o); border: 2px solid var(--k); box-shadow: inset -2px -2px 0 var(--m); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.vo-page .loglist .ib img { zoom: 1.5; } /* 1行目の高さに入る大きさ(合掌の13pxも枠の内側20pxに入る) */
+.vo-page .loglist .ib:hover { background: var(--Y); }
+.vo-page .loglist .ib[aria-pressed="true"] { background: #d3ecc4; box-shadow: inset 2px 2px 0 #9bd27e; }
+.vo-page .loglist .tb .pbtn { height: 24px; margin-left: 3px; padding: 0 6px; }
+/* 「ここから未読」のリボンと、上を見ているあいだに来た新着の▼ */
+.vo-page .loglist > li.unr { padding: 0; margin: 4px 0; }
+.vo-page .loglist > li.unr::after, .vo-page .loglist > li.empty::after { display: none; }
+.vo-page .loglist .unr span { flex: 1; height: 20px; background: var(--r); color: #fff; text-align: center; font: 400 16px/20px "DotGothic16", var(--vo-font); clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 50%, 100% 100%, 0 100%, 8px 50%); }
+.vo-page .loglist > li.nx { position: sticky; bottom: 0; height: 0; padding: 0; } /* 上を見ていても見えている範囲のいちばん下に出る */
+.vo-page .loglist > li.nx::after { display: none; }
+.vo-page .loglist .nx i { position: absolute; left: 50%; transform: translateX(-50%); bottom: 3px; padding: 1px 3px; /* 真ん中の下端(右端だと最後の行の時刻にかぶった) */ background: var(--N); font-style: normal; font-size: 12px; line-height: 1; color: var(--y); animation: vo-blink 1.6s steps(1) infinite; }
+@keyframes vo-blink { 61%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .vo-page .loglist .nx i { animation: none; } }
+/* 取り消した行は「(取り消されました)」の1行 */
+.vo-page .loglist > li.del { align-items: center; }
+.vo-page .loglist .ret { margin-left: 30px; padding: 0 8px; border: 2px dashed var(--M); color: var(--m); font-size: 13px; }
+.vo-page .loglist .empty { color: var(--m); font-size: 12px; }
+/* 入力欄(1〜3行。Enterで送信・Shift+Enterで改行)・字数・@の候補・あいさつ */
+.vo-page .hud-say { position: relative; display: flex; gap: 6px; align-items: flex-end; }
+.vo-page .vo-mode-desk .hud-say { flex: none; padding: 7px 5px 5px; border-top: 2px solid #25314d; box-shadow: 0 -2px 0 #5b6d99; }
+.vo-page .vo-mode-desk .hud-say .pbtn { height: 34px; }
+.vo-page .tawrap { flex: 1; min-width: 0; }
+.vo-page .hud-say textarea {
+  display: block; box-sizing: border-box; width: 100%; height: 34px; max-height: 74px; margin: 0; padding: 6px 8px; resize: none; overflow-y: auto;
+  background: var(--cream); color: var(--k); border: 1px solid var(--k); box-shadow: inset 2px 2px 0 #b8ad92, inset -2px -2px 0 #fff; font: 500 14px/20px var(--vo-font);
+}
+.vo-page .hud-say textarea::placeholder { color: #5d6270; }
+.vo-page .hud-say textarea:placeholder-shown { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* 空のときの案内は1行(スマホの細い欄で2行に折れて切れた) */
+.vo-page .say-cnt { display: block; margin-top: 2px; text-align: right; font-size: 12px; font-weight: 700; line-height: 1.2; color: var(--o); }
+.vo-page .say-cnt.w { color: #ff9d9a; }
+.vo-page .atpop { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 5; width: 220px; padding: 0; }
+.vo-page .atpop h4 { margin: 0; padding: 3px 8px; font-size: 12px; font-weight: 500; color: var(--m); border-bottom: 1px solid var(--M); }
+.vo-page .atpop [role="option"] { display: flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 13px; cursor: pointer; }
+.vo-page .atpop [aria-selected="true"] { background: var(--Y); color: var(--k); }
+.vo-page .atpop .face { width: 20px; height: 20px; border: 1px solid var(--k); background: #ccd8e2; image-rendering: pixelated; }
+.vo-page .greet { display: flex; gap: 6px; align-items: center; padding: 6px 5px 0; }
+.vo-page .vo-root.out .greet { display: none; }
+/* ---------- things on the scene (positions are in world pixels × --s) ---------- */
+.vo-page .plate {
+  --a: calc(var(--y) * var(--s) * 1px + clamp(0px, var(--vy, 0) * 1px + var(--ct, -9999px) + (var(--tagfs) + 15px) / 2 - var(--y) * var(--s) * 1px, 40px));
+  position: absolute; left: calc(var(--x) * var(--s) * 1px); top: calc(var(--a) - clamp(0px, var(--a) - var(--vy, 0) * 1px - var(--cb, 9999px) + (var(--tagfs) + 15px) / 2, 40px)); transform: translate(-50%, calc(-50% - var(--up, 0px))); z-index: 3;
+  display: flex; align-items: center; gap: 5px; padding: 0 2px 0 6px; height: calc(var(--tagfs) + 11px);
+  background: var(--cream); color: var(--k); border: 2px solid var(--V); box-shadow: inset -2px -2px 0 #ddd2bb;
+  font-size: calc(var(--tagfs) + 1px); line-height: 1; white-space: nowrap; pointer-events: auto;
+}
+.vo-page .plate[data-plate] { pointer-events: none; } /* 部屋の表札は押しても何もしないので、下の席・人を押せるように通す。Meetのボタンだけ押せる */
+.vo-page .plate[data-plate] .meet { pointer-events: auto; }
+.vo-page .plate.nomeet { padding-right: 6px; }
+.vo-page .plate .cnt { color: var(--V); font-size: var(--tagfs); }
+.vo-page .plate .tm { color: var(--V); font-size: var(--tagfs); }
+.vo-page .plate .meet { margin-left: 2px; font-family: var(--vo-font); font-weight: 500; font-size: var(--tagfs); line-height: 1; padding: 2px 5px 3px; background: var(--o); color: var(--k); border: 1px solid var(--k); cursor: pointer; }
+.vo-page .plate .meet:hover { background: var(--Y); }
+.vo-page .plate.here { background: var(--l); border-color: var(--L); box-shadow: inset -2px -2px 0 #5a9440; }
+.vo-page .plate.here .cnt, .vo-page .plate.here .tm { color: var(--k); }
+.vo-page .plate.here .meet { background: var(--Y); }
+/* 表札の「話し中」(直近5分に発言があったほかの部屋)。「...」は幅を変えずに切り抜いて1つずつ出す(表札は真ん中そろえなので幅が変わると揺れる) */
+.vo-page .plate .tk { display: inline-flex; align-items: center; gap: 1px; }
+.vo-page .plate .tk svg { display: block; width: calc((var(--tagfs) + 3px) * 11 / 8); height: calc(var(--tagfs) + 3px); }
+.vo-page .plate .tk i { font-style: normal; font-weight: 700; color: var(--V); font-size: var(--tagfs); animation: vo-dots 1.2s steps(4, jump-none) infinite; }
+@keyframes vo-dots { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@media (prefers-reduced-motion: reduce) { .vo-page .plate .tk i { animation: none; } }
+/* 名札・表札は、上のバー(--ct)と下のカード(--cb)の内側へ最大40pxずらす。--vyなどが無い小窓では何もしない */
+.vo-page .tag {
+  --a: calc(var(--y) * var(--s) * 1px + clamp(0px, var(--vy, 0) * 1px + var(--ct, -9999px) + var(--tagfs) + 5px - var(--y) * var(--s) * 1px, 40px));
+  position: absolute; left: calc(var(--x) * var(--s) * 1px); top: calc(var(--a) - clamp(0px, var(--a) - var(--vy, 0) * 1px - var(--cb, 9999px), 40px)); transform: translate(-50%, -100%);
+  display: inline-flex; align-items: center; gap: 3px; height: calc(var(--tagfs) + 5px); padding: 0 3px 0 2px;
+  background: var(--o); color: var(--k); border: 2px solid var(--k); box-shadow: 0 0 0 1px rgba(251, 249, 243, 0.85); font-size: var(--tagfs); font-weight: 700; line-height: 1;
+  white-space: nowrap; pointer-events: none; z-index: 2; /* 縁は濃い2px＋外に白い1px: 明るい床でも暗い床でも浮く */
+}
+.vo-page .tag .sq { outline: 0; width: max(10px, calc(var(--tagfs) - 3px)); height: max(10px, calc(var(--tagfs) - 3px)); }
+.vo-page .tag .ic { width: calc(var(--tagfs) - 1px); height: calc(var(--tagfs) - 1px); display: block; }
+.vo-page .tag.me { border: 2px solid var(--L); color: var(--L); z-index: 11; padding: 0 3px 0 1px; } /* 「あなた」は吹き出し(6)・人に重ねた札(.who:hoverの10)より前。吹き出しのほうがよける(office.jsのlayoutBubbles) */
+.vo-page .tag.off { background: #e6e3dc; color: #33363e; border-style: dashed; }
+.vo-page .plus { position: absolute; left: calc(var(--x) * var(--s) * 1px); top: calc(var(--y) * var(--s) * 1px); transform: translate(-50%, -100%); z-index: 3; background: var(--k); color: var(--o); font-size: var(--tagfs); padding: 2px 6px; border: 2px solid var(--o); pointer-events: none; }
+.vo-page .who, .vo-page .seat, .vo-page .join, .vo-page .hit {
+  position: absolute; left: calc(var(--x) * var(--s) * 1px); top: calc(var(--y) * var(--s) * 1px);
+  width: max(var(--mw, 0px), calc(var(--sw) * var(--s) * 1px)); height: max(var(--mh, 0px), calc(var(--sh) * var(--s) * 1px));
+  transform: translate(-50%, -100%);
+  border: 0; padding: 0; background: transparent; cursor: pointer; z-index: 1;
+}
+.vo-page .join { z-index: 0; transform: none; }
+.vo-page .who:focus-visible, .vo-page .hit:hover, .vo-page .hit:focus-visible { box-shadow: inset 0 0 0 2px rgba(255, 243, 196, 0.95); } /* 人に重ねたときは四角を出さず、絵の輪郭を明るくする(office.jsのHOVER_PID) */
+.vo-page .seat:focus-visible, .vo-page .join:focus-visible { box-shadow: inset 0 0 0 2px var(--L); }
+.vo-page .join:hover { background: rgba(251, 249, 243, 0.12); }
+.vo-page .seat::after, .vo-page .join::after, .vo-page .hit[data-label]::after {
+  content: attr(data-label); position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%);
+  padding: 3px 6px; background: var(--l); color: var(--k); border: 2px solid var(--k);
+  font-size: 12px; line-height: 1; white-space: nowrap; opacity: 0; pointer-events: none;
+}
+.vo-page .join::after { bottom: auto; top: 6px; }
+.vo-page .seat:hover::after, .vo-page .seat:focus-visible::after, .vo-page .join:hover::after, .vo-page .join:focus-visible::after, .vo-page .hit:hover::after, .vo-page .hit:focus-visible::after { opacity: 1; }
+.vo-page .bub {
+  position: absolute; left: calc(var(--x) * var(--s) * 1px); top: calc(var(--y) * var(--s) * 1px);
+  transform: translate(calc(-50% + var(--dx, 0px)), calc(-100% - 6px - var(--lift, 0px)));
+  width: max-content; max-width: calc(var(--tagfs) * 17); padding: 3px 7px 4px;
+  background: var(--o); color: var(--k); border: 2px solid var(--k); box-shadow: 0 0 0 1px rgba(251, 249, 243, 0.85), 3px 3px 0 rgba(34, 31, 44, 0.45);
+  font-family: var(--vo-font); font-size: var(--tagfs); line-height: 1.45; z-index: 6; pointer-events: none;
+  animation: vo-bub-in 0.2s steps(2) both;
+}
+.vo-page .bub::after {
+  content: ""; position: absolute; left: calc(50% - 4px - var(--dx, 0px)); bottom: -6px; width: 6px; height: 6px;
+  background: var(--o); border-right: 2px solid var(--k); border-bottom: 2px solid var(--k); transform: rotate(45deg);
+}
+.vo-page .bub.lifted::after { display: none; }
+.vo-page .bub.lifted { border-style: dashed; }
+.vo-page .bub .spk { display: none; font-weight: 700; margin-right: 4px; }
+.vo-page .bub.lifted .spk { display: inline; }
+.vo-page .bub.alert { background: var(--yel); font-family: "DotGothic16", sans-serif; font-weight: 400; font-size: 16px; padding: 1px 7px; z-index: 8; }
+.vo-page .bub.alert::after { background: var(--yel); }
+.vo-page .bub.out { animation: vo-bub-out 0.3s steps(3) forwards; }
+/* チャットの吹き出しの中身: 自分あての名指しは黄色、URLはドメインのチップ(押せない)、長文は「…続きはログ」。--yは位置に使っているので黄色は --yel */
+.vo-page .bub.men, .vo-page .bub.men::after { background: var(--Y); border-color: var(--yel); }
+.vo-page .bub .atl { display: inline-block; margin-right: 4px; padding: 0 4px; background: var(--yel); color: var(--k); font-size: calc(var(--tagfs) - 2px); font-weight: 700; line-height: 1.4; }
+.vo-page .bub .chip { display: inline-block; padding: 0 4px; background: var(--cream); border: 1px solid var(--V); font-size: calc(var(--tagfs) - 1px); line-height: 1.3; overflow-wrap: anywhere; }
+.vo-page .bub .more { white-space: nowrap; }
+.vo-page .bub .more b { color: var(--M); font-weight: 700; }
+@keyframes vo-bub-in { from { opacity: 0; } }
+@keyframes vo-bub-out { to { opacity: 0; } }
+.vo-page .fxicon { position: absolute; left: calc(var(--x) * var(--s) * 1px); top: calc(var(--y) * var(--s) * 1px); transform: translate(-50%, -100%); z-index: 7; pointer-events: none; }
+.vo-page .fxicon canvas { display: block; width: calc(8px * var(--s)); height: calc(8px * var(--s)); }
+.vo-page .fxicon.wave { animation: vo-wave 0.5s steps(2) infinite; transform-origin: 50% 100%; }
+.vo-page .fxicon.heart { animation: vo-rise 1.6s steps(8) forwards; }
+@keyframes vo-wave { 50% { rotate: 18deg; } }
+/* 手を振られた側: 振った人の頭上に大きめの手を出して3回振る(×2で32px) */
+.vo-page .fxicon.wavebig { animation: vo-wave-big 0.6s steps(3) 3; transform-origin: 50% 100%; }
+.vo-page .fxicon.wavebig canvas { width: max(28px, calc(16px * var(--s))); height: max(28px, calc(16px * var(--s))); }
+@keyframes vo-wave-big { 25% { rotate: -24deg; } 75% { rotate: 24deg; } }
+@keyframes vo-rise { to { translate: 0 calc(-10px * var(--s)); opacity: 0; } }
+/* エモーションの頭上の絵(startEmote。3.5秒)。絵の大きさのまま倍率ぶん拡大。回す・大きくするのはcanvasのほう(.fxiconのtransformと軸がずれる) */
+.vo-page .fxicon.emo canvas { width: auto; height: auto; zoom: var(--s); }
+.vo-page .fxicon.emo-dance { animation: vo-emo-sway 0.6s steps(1) infinite; }
+.vo-page .fxicon.emo-jump, .vo-page .fxicon.emo-banzai { animation: vo-emo-hop 0.4s steps(1) infinite; }
+.vo-page .fxicon.emo-spin canvas { animation: vo-emo-spin 0.8s steps(4) infinite; }
+.vo-page .fxicon.emo-clap { animation: vo-emo-blink 0.4s steps(1) infinite; }
+.vo-page .fxicon.emo-heart { animation: vo-rise 3.5s steps(14) forwards; }
+.vo-page .fxicon.emo-good canvas, .vo-page .fxicon.emo-wow canvas { animation: vo-emo-pop 0.3s steps(2); transform-origin: 50% 100%; }
+.vo-page .fxicon.emo-what canvas { animation: vo-wave 1.2s steps(2) infinite; transform-origin: 50% 100%; }
+.vo-page .fxicon.emo-sweat { animation: vo-emo-drip 0.8s steps(3) infinite; }
+@keyframes vo-emo-sway { 25% { translate: calc(-2px * var(--s)) 0; } 75% { translate: calc(2px * var(--s)) 0; } }
+@keyframes vo-emo-hop { 50% { translate: 0 calc(-3px * var(--s)); } }
+@keyframes vo-emo-spin { to { rotate: 360deg; } }
+@keyframes vo-emo-blink { 50% { opacity: 0.35; } }
+@keyframes vo-emo-pop { from { scale: 0.5; } }
+@keyframes vo-emo-drip { to { translate: 0 calc(3px * var(--s)); } }
+/* ---------- popovers / toast ---------- */
+.vo-page .pop { position: fixed; z-index: 40; width: 280px; padding: 10px 12px; }
+.vo-page .pop h3 { margin: 0 0 8px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.vo-page .pop .x { margin-left: auto; background: none; border: 0; color: var(--o); cursor: pointer; font-size: 14px; padding: 0 2px; }
+.vo-page .pop p { font-family: var(--vo-font); font-size: 13px; line-height: 1.55; margin: 0 0 10px; }
+.vo-page .pop .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.vo-page .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--m); margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(251, 249, 243, 0.25); }
+.vo-page .legend span { display: inline-flex; align-items: center; gap: 4px; }
+.vo-page .plist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; max-height: 52vh; overflow: auto; }
+.vo-page .plist li { display: grid; grid-template-columns: 26px 1fr auto; column-gap: 8px; align-items: center; font-size: 13px; }
+.vo-page .plist canvas { width: 22px; height: 22px; border: 2px solid var(--o); background: #ccd8e2; grid-row: span 2; }
+.vo-page .plist .nmrow { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.vo-page .plist .where { color: var(--m); font-size: 12px; text-align: right; }
+.vo-page .plist .memo1 { grid-column: 2 / 4; font-family: var(--vo-font); font-size: 12px; color: #c9cdd6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vo-page .plist .me { color: #b4e39b; }
+.vo-page .plist .off canvas { opacity: 0.55; }
+.vo-page .psec { font-size: 12px; color: var(--m); margin: 10px 0 6px; }
+.vo-page .pcard .row { display: flex; align-items: center; gap: 10px; }
+.vo-page .pcard canvas { width: 40px; height: 40px; border: 2px solid var(--o); background: #ccd8e2; flex: none; }
+.vo-page .pcard .nm { font-size: 15px; }
+.vo-page .pcard .st { font-size: 12px; display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.vo-page .pcard .memo { margin: 8px 0 0; padding: 6px 8px; background: rgba(251, 249, 243, 0.1); border-left: 3px solid var(--yel); overflow-wrap: anywhere; }
+.vo-page .pcard .warn { font-size: 12px; color: var(--Y); margin: 6px 0 0; font-family: var(--vo-font); }
+.vo-page .pcard .acts { margin-top: 10px; }
+.vo-page .stmenu .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.vo-page .stmenu .opts button[aria-checked="true"] { background: var(--Y); box-shadow: inset 2px 2px 0 var(--m); }
+.vo-page .stmenu label { display: block; font-size: 12px; margin: 10px 0 4px; }
+.vo-page .pop input[type="text"], .vo-page .stmenu input { width: 100%; background: var(--o); color: var(--k); border: 2px solid var(--k); padding: 5px 7px; font-family: var(--vo-font); font-size: 13px; }
+.vo-page .override { font-size: 12px; color: var(--Y); margin: 8px 0 0; font-family: var(--vo-font); }
+.vo-page .dress { width: min(480px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); overflow-y: auto; overscroll-behavior: contain; }
+.vo-page .dress .top { position: sticky; top: -10px; z-index: 1; margin: -10px -12px 0; padding: 10px 12px 6px; background: var(--N); } /* 下の項目をスクロールしても見本は見えたまま */
+.vo-page .dress .pv { display: flex; gap: 10px; align-items: flex-end; }
+.vo-page .dress .pv canvas { box-sizing: content-box; width: 72px; background: #ccd8e2; border: 2px solid var(--o); }
+.vo-page .dress .bodypv canvas { height: 96px; }
+.vo-page .dress .facepv canvas { height: 72px; }
+.vo-page .dress .preview-direction { display: flex; flex-direction: column; gap: 6px; padding: 3px; }
+.vo-page .dress .preview-direction button { min-width: 52px; min-height: 32px; }
+.vo-page .dress .preview-direction button[aria-pressed="true"] { outline: 2px solid var(--yel); outline-offset: 1px; background: var(--Y); }
+.vo-page .dress .grp { margin: 8px 0 0; }
+.vo-page .dress .grp b { display: block; font-weight: 700; font-size: 12px; color: var(--m); margin-bottom: 4px; }
+.vo-page .dress .grp b span { margin-left: 8px; color: var(--o); font-weight: 400; }
+.vo-page .dress .sw.ic { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+.vo-page .dress .sw.ic button { width: auto; height: auto; min-height: 58px; padding: 3px 2px 4px; background: var(--o); color: var(--k); font-size: 11px; line-height: 1.2; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; white-space: normal; overflow-wrap: anywhere; text-align: center; }
+.vo-page .dress .sw.ic canvas { width: 40px; height: 32px; }
+.vo-page .dress .sw.ic canvas.faceopt { width: 48px; height: 48px; }
+.vo-page .dress .sw.ic canvas.bodyopt { width: 48px; height: 64px; }
+.vo-page .dress .grp.sub { margin-top: 4px; }
+.vo-page .dress .grp.sub b { font-weight: 400; }
+.vo-page .dress a.draw { display: inline-block; margin-top: 4px; font-size: 12px; color: var(--k); text-decoration: underline; }
+.vo-page .sw input.pick { width: 28px; height: 28px; padding: 0; border: 2px solid var(--k); background: none; cursor: pointer; }
+.vo-page .sw { display: flex; flex-wrap: wrap; gap: 4px; }
+.vo-page .sw button { width: 28px; height: 28px; border: 2px solid var(--k); cursor: pointer; padding: 0; box-shadow: inset -2px -2px 0 rgba(0,0,0,.25); }
+.vo-page .sw button[aria-pressed="true"] { outline: 2px solid var(--yel); outline-offset: 1px; }
+.vo-page .sw.txt button { width: auto; padding: 0 6px; background: var(--o); color: var(--k); font-size: 12px; height: 26px; }
+/* 机を飾る: 40種を4列の格子に。画面が低いときは一覧の中だけスクロール(選んだ物の黄色い枠が切れないよう内側に余白) */
+.vo-page .pop.decopop, .vo-page .pop.emotepop { width: min(340px, calc(100vw - 16px)); }
+.vo-page .deco .sw { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; max-height: calc(100vh - 130px); overflow-y: auto; padding: 3px; margin: 0 -3px 8px; }
+/* エモーション: 10種を5列の格子に(ボタンは机を飾ると同じ形。絵は4倍) */
+.vo-page .emote .sw { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin-bottom: 8px; }
+.vo-page .emote .sw canvas { width: auto; height: auto; zoom: 4; }
+.vo-page .deco .sw button, .vo-page .emote .sw button { width: auto; height: auto; min-width: 0; padding: 3px 2px 4px; background: var(--o); color: var(--k); font-size: 11px; line-height: 1.25; display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center; text-align: center; }
+.vo-page .emote .sw button { padding-inline: 0; } /* 320px幅でも4文字(ジャンプ・くるっと)を1行に */
+.vo-page .deco .sw button[aria-pressed="true"] { background: var(--Y); box-shadow: inset 2px 2px 0 var(--M); }
+.vo-page .deco .sw canvas { width: 39px; height: 39px; } /* 13×13の3倍(整数倍でにじまない) */
+.vo-page .pcsw { margin-bottom: 4px; }
+.vo-page .pcsw button { width: auto; height: 32px; padding: 0 6px; background: var(--o); color: var(--k); font-size: 12px; display: inline-flex; gap: 4px; align-items: center; }
+.vo-page .pcsw canvas { width: 26px; height: 26px; }
+.vo-page .dress .note { margin: 2px 0 0; font-size: 12px; color: var(--m); }
+.vo-page .toast { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 45; padding: 8px 10px 8px 12px; font-size: 13px; display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 24px); }
+.vo-page .toast.top { bottom: auto; top: calc(var(--hud-top) + 12px); }
+.vo-page .toast canvas { width: 28px; height: 28px; border: 2px solid var(--o); background: #ccd8e2; flex: none; }
+.vo-page .toast b { font-weight: 700; color: var(--Y); }
+.vo-page .toast .t { min-width: 0; }
+.vo-page .toast .plink { cursor: pointer; } /* 声かけ・手を振る・返事のトーストの顔と名前(押すとその人に寄せる) */
+/* ---------- phone (<600px): full-screen map, bottom bar + sheet ---------- */
+.vo-page .hud-bar, .vo-page .sheet-btn, .vo-page .hud-sheet { display: none; }
+.vo-page .vo-mode-phone .hud-top, .vo-page .vo-mode-phone .zoom .lv, .vo-page .vo-mode-phone .zoom .fit { display: none; }
+/* スマホはチャットの窓を開かず(ログはシート)、窓の中の入力欄とMeetだけを下のバーに並べる */
+.vo-page .vo-mode-phone .hud-log, .vo-page .vo-mode-phone .log-head { display: contents; }
+.vo-page .vo-mode-phone .log-head > :not(.meetbtn), .vo-page .vo-mode-phone .hud-log > .loglist, .vo-page .vo-mode-phone .lg-note { display: none; }
+.vo-page .vo-mode-phone .meetbtn { order: 1; padding: 5px 7px 6px; font-size: 13px; }
+.vo-page .vo-mode-phone .greet { position: fixed; left: 8px; bottom: 70px; z-index: 21; padding: 5px; background: var(--N); border: 2px solid var(--o); box-shadow: 0 0 0 2px var(--k); }
+.vo-page .vo-mode-phone .zoom { bottom: 76px; right: 8px; }
+.vo-page .vo-mode-phone .hud-bar { display: block; position: fixed; left: 0; right: 0; bottom: 0; height: 60px; z-index: 19; background: var(--N); border-top: 2px solid var(--o); box-shadow: 0 -2px 0 var(--k); }
+.vo-page .vo-mode-phone .hud-bottom { position: fixed; left: 8px; right: 58px; bottom: 9px; gap: 8px; }
+.vo-page .vo-mode-phone .hud-me { width: auto; padding: 0; background: none; border: 0; box-shadow: none; }
+.vo-page .vo-mode-phone .hud-me .me-main { display: none; }
+.vo-page .vo-mode-phone .portrait { width: 42px; height: 42px; }
+.vo-page .vo-mode-phone .hud-say { flex: 1 1 auto; min-width: 0; }
+.vo-page .vo-mode-phone .hud-say .pbtn { padding: 5px 7px 6px; }
+.vo-page .vo-mode-phone .sheet-btn { display: inline-flex; position: fixed; right: 8px; bottom: 10px; z-index: 21; width: 42px; height: 38px; font-size: 16px; }
+.vo-page .vo-mode-phone .sheet-btn .badge { position: absolute; right: -6px; top: -8px; }
+.vo-page .vo-mode-phone .hud-sheet {
+  display: block; position: fixed; left: 0; right: 0; bottom: 60px; z-index: 18; max-height: 72vh; overflow: auto;
+  border-width: 2px 0 0; padding: 12px 14px 16px; transform: translateY(calc(100% + 70px)); transition: transform 0.2s steps(4);
+}
+.vo-page .vo-mode-phone .hud-sheet.open { transform: none; }
+.vo-page .vo-mode-phone .hud-sheet.open ~ .zoom { display: none; }
+.vo-page .hud-sheet h2 { font-size: 14px; font-weight: 700; margin: 14px 0 8px; display: flex; gap: 8px; align-items: center; }
+.vo-page .sheet-me { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 2px solid rgba(251, 249, 243, 0.3); }
+.vo-page .sheet-me .me-status { font-size: 13px; padding: 4px 8px; }
+.vo-page .hud-sheet .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.vo-page .vo-mode-phone .toast { bottom: 72px; width: calc(100vw - 24px); }
+.vo-page .vo-mode-phone .toast.call { bottom: auto; top: 52px; }
+@media (prefers-reduced-motion: reduce) {
+  .vo-page .bub, .vo-page .fxicon, .vo-page .fxicon.wave, .vo-page .fxicon.wavebig, .vo-page .fxicon.emo, .vo-page .fxicon.emo canvas { animation: none; } /* .waveは詳細度で上の指定に勝っていたので名指しで止める */
+  .vo-page .vo-mode-phone .hud-sheet { transition: none; }
+}
+/* ---------- mini window ---------- */
+.vo-page .mini { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--N); color: var(--o); font-family: var(--vo-font); overflow: hidden; }
+.vo-page .mini-head { height: 30px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 8px; border-bottom: 2px solid var(--o); font-size: 12px; white-space: nowrap; }
+.vo-page .mini-head .sp { flex: 1; }
+.vo-page .mini-head .mst { display: flex; gap: 2px; }
+/* ステータスは押せるボタンに見えるよう枠を付け、今のものは塗りつぶす(枠なしの4つが凡例に見えた) */
+.vo-page .mini-head .mst button { background: rgba(251, 249, 243, 0.06); color: var(--o); border: 1px solid rgba(251, 249, 243, 0.55); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25); padding: 1px 4px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
+.vo-page .mini-head .mst button:not(:disabled):hover { background: rgba(251, 249, 243, 0.2); }
+.vo-page .mini-head .mst button[aria-pressed="true"] { background: var(--o); color: var(--k); border-color: var(--o); box-shadow: none; font-weight: 700; }
+.vo-page .mini-head .mst button:disabled { opacity: 0.5; cursor: default; }
+.vo-page .mini-head .mst .sq { width: 10px; height: 10px; }
+.vo-page .mini-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #7fae5c; }
+.vo-page .mini-stage > canvas { position: absolute; left: 50%; top: 50%; image-rendering: pixelated; }
+.vo-page .mini-ov { position: absolute; inset: 0; pointer-events: none; }
+.vo-page .mini-ov .tag, .vo-page .mini-ov .bub { --tagfs: 12px; }
+.vo-page .mini-away { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(34, 31, 44, 0.6); font-size: 16px; }
+.vo-page .mini-call { position: absolute; left: 8px; right: 8px; top: 8px; display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 13px; z-index: 9; }
+.vo-page .mini-call canvas { width: 26px; height: 26px; border: 2px solid var(--o); background: #ccd8e2; flex: none; }
+.vo-page .mini-call .t { flex: 1; min-width: 0; }
+.vo-page .mini-call b { font-weight: 700; color: var(--Y); }
+.vo-page .mini-call .q { white-space: nowrap; } /* 「ちょっとい／い？」と折れないように(折れるなら名前のあと) */
+/* 小窓の直近3行(古い順に上から。1行ずつ・はみ出しは…)。自分あては薄い黄色 */
+.vo-page .mini-log { flex: none; display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 4px 6px; list-style: none; font-family: var(--vo-font); font-size: 13px; line-height: 18px; overflow: hidden; }
+.vo-page .mini-log li { display: flex; gap: 8px; min-width: 0; padding: 0 4px; white-space: nowrap; }
+.vo-page .mini-log b { font-weight: 700; color: var(--Y); flex: none; }
+.vo-page .mini-log span { overflow: hidden; text-overflow: ellipsis; }
+.vo-page .mini-log .me b { color: #b4e39b; }
+.vo-page .mini-log .men { background: var(--Y); color: var(--k); box-shadow: inset 3px 0 0 var(--yel); }
+.vo-page .mini-log .men b { color: var(--K); }
+.vo-page .mini-log .del span, .vo-page .mini-log .empty span { color: var(--m); }
+.vo-page .mini-say { flex: none; display: flex; gap: 6px; padding: 6px 8px 8px; border-top: 2px solid var(--o); }
+.vo-page .mini.textonly .mini-stage { flex: none; overflow: visible; background: none; }
+.vo-page .mini.textonly .mini-stage > canvas, .vo-page .mini.textonly .mini-ov { display: none; }
+.vo-page .mini.textonly .mini-call { position: static; margin: 6px 8px 0; }
+.vo-page .mini.textonly .mini-log { flex: 1; }
+
+
+/* ---------- あとから足したもの ---------- */
+.vo-page .vo-root { position: fixed; inset: 0; }
+.vo-page .vo-loading { position: fixed; inset: 0; display: grid; place-items: center; color: var(--o); background: var(--N); font-size: 14px; }
+/* ステータスは4つ(会議中も手で選べる)なので2列 */
+.vo-page .stmenu .opts { grid-template-columns: repeat(2, 1fr); }
+/* 入室していないとき: 下の段の真ん中に「入室する」。カードは名前と着替えだけ */
+.vo-page .hud-enter { display: none; flex: 0 1 auto; margin: 0 auto; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; font-size: 13px; }
+.vo-page .hud-enter .pbtn { font-size: 18px; padding: 9px 24px 10px; }
+.vo-page .vo-root.out .hud-enter { display: flex; }
+.vo-page .vo-root.out .hud-say, .vo-page .vo-root.out .hud-log, .vo-page .vo-root.out .me-status, .vo-page .vo-root.out .me-memo,
+.vo-page .vo-root.out #awayBtn, .vo-page .vo-root.out #decoBtn, .vo-page .vo-root.out #emoteBtn, .vo-page .vo-root.out #leaveBtn, .vo-page .vo-root.out .portrait .sq,
+.vo-page .vo-root.out .sheet-me { display: none; }
+.vo-page .vo-mode-phone .hud-enter { margin: 0; padding: 0; background: none; border: 0; box-shadow: none; }
+.vo-page .vo-mode-phone .hud-enter .t { display: none; }
+/* スマホの席選び: 説明を1行だけ下のバーの上に(右はズームの＋−をよける) */
+.vo-page .vo-mode-phone .hud-enter.pick .t { display: block; position: fixed; left: 8px; right: 60px; bottom: 70px; padding: 5px 10px; background: var(--N); color: var(--Y); border: 2px solid var(--o); box-shadow: 0 0 0 2px var(--k); font-size: 13px; font-weight: 700; }
+/* 声かけ: 返事するまで出したままのトースト(上)。ほかのトーストは下の別の枠 */
+.vo-page .toast.call { bottom: auto; top: calc(var(--hud-top) + 12px); z-index: 46; }
+.vo-page .toast .x { background: none; border: 0; color: var(--o); cursor: pointer; font-size: 14px; padding: 0 2px; }
+/* 自分のカードの「〇〇さんが呼んでいます」 */
+.vo-page .call-chip { align-self: flex-start; background: var(--yel); color: var(--k); border: 2px solid var(--k); font-size: 12px; font-weight: 500; line-height: 1.2; padding: 2px 6px; cursor: pointer; text-align: left; }
+/* 呼んでいる人の名札(返事するまで): 黄色くして左端に「!」。名札ごと小さく跳ねる */
+.vo-page .tag.calling { background: var(--yel); z-index: 5; animation: vo-bounce 0.8s steps(2) infinite; }
+.vo-page .tag .callin { align-self: stretch; display: grid; place-items: center; margin: 0 1px 0 -2px; padding: 0 4px; background: var(--k); color: var(--yel); font-size: calc(var(--tagfs) + 1px); font-weight: 900; }
+@keyframes vo-bounce { 50% { translate: 0 -3px; } }
+@media (prefers-reduced-motion: reduce) { .vo-page .tag.calling { animation: none; } }
+/* 離席中の名札はグレーの点線で半分すける(「離席中」の文字は出さない) */
+.vo-page .tag.off.away { background: #d7d9dd; color: #33363e; border-color: #33363e; opacity: 0.7; }
+/* ×2未満で重なって間引いた名札(.thin。人に重ねると .peekで出る)と、吹き出しにかぶる名札(.bubhide。吹き出しが消えるまで)。話している人の名札(.speak)は間引いていても出す */
+.vo-page .tag.thin, .vo-page .tag.bubhide { visibility: hidden; }
+.vo-page .tag.thin.speak, .vo-page .tag.peek { visibility: visible; z-index: 9; }
+/* 花札・おみくじの小さい札(部屋の札と同じ形・押せる) */
+.vo-page .plate.small { height: calc(var(--tagfs) + 7px); padding: 0 6px; font-size: var(--tagfs); font-weight: 500; cursor: pointer; }
+.vo-page .plate.small:hover { background: var(--Y); }
+/* ログの本文の中の自分あての出来事(声かけ) */
+.vo-page .loglist .sys .tx { color: var(--Y); }
+.vo-page .guide ul { margin: 0 0 8px; padding-left: 1.2em; list-style: disc; font-size: 13px; line-height: 1.6; }
+/* はじめての案内(4枚。指す物のそば、指せないときは真ん中。低い画面ではカードの中をスクロール) */
+.vo-page .pop.guide { width: min(340px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; word-break: auto-phrase; } /* 文節で折り返す(「退/出」と1文字だけ次の行に落ちないように) */
+.vo-page .pop.guide h3 { margin-bottom: 4px; }
+.vo-page .pop.guide .pg { font-size: 12px; font-weight: 400; color: var(--m); }
+.vo-page .pop.guide .lead { font-size: 16px; font-weight: 700; line-height: 1.5; color: var(--Y); margin: 0 0 6px; }
+.vo-page .pop.guide ul { line-height: 1.7; }
+.vo-page .pop.guide li .sq { vertical-align: -1px; margin: 0 4px 0 1px; } /* 名札の色の四角を文字の高さに */
+.vo-page .pop.guide .acts { justify-content: flex-end; }
+.vo-page .pop.guide .note { margin: 0 0 8px; font-size: 12px; } /* 最後のカードの通知の1行 */
+/* 案内が指す物の黄色い枠。ほかは暗くする(.popのすぐ下)。ゆっくり点滅は選べる席の輪と同じ。案内が閉じたり別のカードに替わったら消える */
+.vo-page .guide-spot { position: fixed; z-index: 39; box-sizing: border-box; border: 3px solid var(--yel); box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); pointer-events: none; animation: vo-spot 1.6s ease-in-out infinite; }
+.vo-page .pop[hidden] + .guide-spot, .vo-page .pop:not(.guide) + .guide-spot { display: none; }
+@keyframes vo-spot { 50% { border-color: rgba(244, 198, 81, 0.35); } } /* var(--yel) の0.35 */
+@media (prefers-reduced-motion: reduce) { .vo-page .guide-spot { animation: none; } }
+/* おみくじ: コーヒーを注ぐ */
+/* 名簿の行は押せる(カメラを寄せて人のカード) */
+.vo-page .plist li[data-pid] { cursor: pointer; padding: 2px; margin: -2px; }
+.vo-page .plist li[data-pid]:hover, .vo-page .plist li[data-pid]:focus-visible { background: rgba(251, 249, 243, 0.12); }
+/* スマホの下のバーのステータスの四角(押すと離席・戻る) */
+.vo-page .away-sq { display: none; }
+.vo-page .vo-mode-phone .away-sq { display: inline-flex; width: 42px; height: 42px; padding: 0; flex: none; }
+.vo-page .vo-mode-phone .away-sq .sq { width: 18px; height: 18px; }
+.vo-page .vo-root.out .away-sq { display: none; }
+/* 集中中の名札は紫の枠 */
+.vo-page .tag.focus { border: 2px solid var(--st-focus); }
+.vo-page .tag .ic + .ic { margin-left: 1px; }
+/* 人に重ねると出す1行(状態・集中の残り・ひとこと) */
+.vo-page .who:hover, .vo-page .who:focus-visible { z-index: 10; }
+.vo-page .who[data-label]::after {
+  content: attr(data-label); position: absolute; left: 50%; bottom: calc(100% + var(--tagfs) + 12px); transform: translateX(-50%);
+  width: max-content; max-width: 280px; padding: 3px 7px 4px; background: var(--N); color: var(--o); border: 2px solid var(--o); box-shadow: 0 0 0 2px var(--k);
+  font-size: 12px; line-height: 1.45; white-space: normal; text-align: left; opacity: 0; pointer-events: none;
+}
+.vo-page .who[data-label]:hover::after, .vo-page .who[data-label]:focus-visible::after { opacity: 1; }
+/* 名簿: 名前は1行で「…」、状態と場所は折り返さない */
+.vo-page .plist .nmrow > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vo-page .plist .nmrow .sq { flex: none; }
+.vo-page .plist .where { white-space: nowrap; flex: none; }
+/* スマホの下のバーの四角に「離席」「戻る」の文字 */
+.vo-page .vo-mode-phone .away-sq { width: auto; padding: 0 8px; gap: 5px; font-size: 13px; }
+/* ×1以下(「全体」など)の小さい名札: 色の四角＋名字 */
+.vo-page .tag.small-tag { font-size: 12px; height: 17px; gap: 2px; padding: 0 2px 0 1px; } /* .miniは小窓の根の名前なので使わない */
+.vo-page .tag.small-tag .sq { width: 8px; height: 8px; }
+/* 名札の色の四角は重ねると意味が出る(title) */
+.vo-page .tag .sq[title] { pointer-events: auto; cursor: help; }
+/* 「呼ばれたら通知する」「小窓で開く」の案内(自分のカードとスマホのシート) */
+.vo-page .notify-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 4px; padding-top: 5px; border-top: 1px solid rgba(251, 249, 243, 0.25); }
+.vo-page .notify-note { flex: 1 1 100%; font-size: 12px; line-height: 1.45; color: var(--m); }
+.vo-page .notify-off { font-size: 12px; color: var(--m); }
+.vo-page .hud-sheet .notify-row { margin: 8px 0 0; }
+.vo-page .vo-root.out .notify-row { display: none; }
+/* 自分のカード: 「離席/席に戻る」は同じ幅で行が折り返さない */
+.vo-page .hud-me { position: relative; }
+.vo-page .away-btn { width: 64px; flex: none; }
+/* 「退出する」は枠だけ(点線・赤みの文字)にして、ほかのボタンと区別する。入室していなければ出さない */
+.vo-page .hud-top .leave-top { border-style: dashed; color: #f2c0bb; }
+.vo-page .hud-top .leave-top:hover { background: rgba(210, 78, 75, 0.25); }
+.vo-page .vo-root.out .leave-top { display: none; }
+.vo-page .notify-row .ghost { color: var(--m); border-color: var(--M); }
+/* ほかの部屋で話している人の「…」 */
+.vo-page .bub.talk { font-weight: 700; letter-spacing: 0.1em; padding: 0 7px 2px; color: var(--M); }
+/* 入室する席を選んでもらうとき */
+.vo-page .hud-enter.pick { box-shadow: 0 0 0 2px var(--k), 0 0 0 5px var(--l); }
+.vo-page .hud-enter.pick .t b { color: var(--Y); font-weight: 700; }
+/* 選べる席の目印: 椅子(黄緑)と見分けがつき、夜の暗い床でも見える黄色い輪(床の上の楕円。席のボタンの下端から4px下が席の中心)。ゆっくり点滅 */
+.vo-page .seat.free::before {
+  content: ""; position: absolute; left: 50%; bottom: calc(-4px * var(--s)); width: calc(32px * var(--s)); height: calc(16px * var(--s)); margin-left: calc(-16px * var(--s));
+  border: 3px solid #ffd84a; border-radius: 50%; background: rgba(255, 236, 150, 0.22); pointer-events: none;
+  box-shadow: 0 0 0 1px var(--k), inset 0 0 0 1px var(--k), 0 0 8px 2px rgba(255, 216, 74, 0.6);
+  animation: vo-free 1.6s ease-in-out infinite;
+}
+@keyframes vo-free { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .vo-page .seat.free::before { animation: none; } }
+/* 返事の行の「Meetを開く」 */
+.vo-page .loglist .sys .pbtn { margin-top: 4px; }
+/* カードを100px前後に: 名前は1行で「…」、通知の案内は区切り線なし */
+.vo-page .me-line { flex-wrap: nowrap; }
+.vo-page #meName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vo-page .me-line small, .vo-page .me-line .me-status, .vo-page .me-line .me-timer { flex: none; }
+.vo-page .hud-me .notify-row { margin-top: 3px; padding-top: 0; border-top: 0; }
+.vo-page .hud-me .me-main { gap: 2px; }
+/* 幅900px未満(半分の幅のウィンドウなど): カードを細くする(チャットの窓は幅をcalcで詰める) */
+@media (max-width: 900px) {
+  .vo-page .hud-me { width: 290px; }
+}
+/* メニュー(config.menu) */
+.vo-page .pop.menu { min-width: 160px; }
+.vo-page .pop.menu .acts { flex-direction: column; align-items: stretch; }
+.vo-page .pop.menu .acts a.pbtn { text-decoration: none; text-align: center; }
+/* マップが空のとき(案内とメニューだけ) */
+.vo-page .vo-empty { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; background: var(--N); color: var(--o); font-family: var(--vo-font); }
+.vo-page .vo-empty h1 { margin: 0; font-size: 20px; }
+.vo-page .vo-empty p { margin: 0; }
+.vo-page .vo-empty .acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.vo-page .vo-empty a.pbtn { text-decoration: none; }
+/* ねこのカード */
+/* 人の名札はマウスで押せる(人と同じカード)。空席の机の札(data-personなし)は今どおり素通り */
+.vo-page .tag[data-person] { pointer-events: auto; cursor: pointer; }
+.vo-page .tag[data-person]:hover { background: var(--Y); }
+/* 集中の残り時間はひとことの行の頭に(1行目は名前を優先) */
+.vo-page .me-sub { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.vo-page .me-sub .me-timer { flex: none; }
+.vo-page .me-sub .me-memo { flex: 1; min-width: 0; }
+.vo-page .vo-root.out .me-sub { display: none; }
+/* 名簿は名前が長くても切れないよう少し広く */
+.vo-page .pop.roster { width: min(340px, calc(100vw - 16px)); }
+
+/* プレビュー(config.preview): HUD・ポップアップを隠し、階のボタンだけ残す */
+.vo-preview .hud-top, .vo-preview .hud-bar, .vo-preview .hud-bottom, .vo-preview .sheet-btn, .vo-preview .hud-sheet, .vo-preview .pop, .vo-preview .toast, .vo-preview #ov, .vo-preview #fxov { display: none !important; }
+.vo-preview .zoom > :not(.floors) { display: none !important; }
+.vo-preview .zoom { bottom: 10px !important; }

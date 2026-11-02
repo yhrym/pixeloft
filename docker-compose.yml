@@ -1,0 +1,32 @@
+name: pixeloft
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://vo:vo@db:5432/vo
+      TZ: ${TZ:-Asia/Tokyo}
+      APP_URL: ${APP_URL:-}
+      TRUSTED_PROXY: ${TRUSTED_PROXY:-}
+    restart: unless-stopped
+  db:
+    image: postgres:17-alpine
+    # dbはポートを外に出さずappからだけ届くので、パスワードは固定の既定値でよい
+    environment:
+      POSTGRES_USER: vo
+      POSTGRES_PASSWORD: vo
+      POSTGRES_DB: vo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vo -d vo"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+volumes:
+  pgdata:

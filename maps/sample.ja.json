@@ -1,0 +1,993 @@
+{
+ "version": 1,
+ "name": "サンプルオフィス",
+ "backdrop": "city",
+ "floors": [
+  {
+   "id": "f1",
+   "name": "1F",
+   "rooms": [
+    {
+     "id": "lobby",
+     "name": "ロビー",
+     "kind": "hall",
+     "rects": [
+      [0, 0, 96, 192]
+     ],
+     "sign": [8, 176]
+    },
+    {
+     "id": "work",
+     "name": "ワークエリア",
+     "kind": "work",
+     "rects": [
+      [96, 0, 432, 144]
+     ],
+     "sign": [104, 128]
+    },
+    {
+     "id": "corridor",
+     "name": "廊下",
+     "kind": "hall",
+     "rects": [
+      [96, 144, 432, 184]
+     ],
+     "floor": "carpet-stripe"
+    },
+    {
+     "id": "meet-l",
+     "name": "大会議室",
+     "kind": "meeting",
+     "rects": [
+      [96, 184, 240, 304]
+     ],
+     "sign": [104, 288]
+    },
+    {
+     "id": "meet-s",
+     "name": "小会議室",
+     "kind": "meeting",
+     "rects": [
+      [240, 184, 320, 304]
+     ],
+     "floor": "wood",
+     "sign": [248, 288]
+    },
+    {
+     "id": "break",
+     "name": "休憩室",
+     "kind": "break",
+     "rects": [
+      [320, 184, 432, 304]
+     ],
+     "sign": [328, 288]
+    },
+    {
+     "id": "booths",
+     "name": "電話ブース",
+     "kind": "free",
+     "rects": [
+      [0, 192, 96, 304]
+     ],
+     "floor": "carpet",
+     "sign": [8, 288]
+    }
+   ],
+   "walls": [
+    {
+     "axis": "x",
+     "at": 0,
+     "a": 0,
+     "b": 432,
+     "kind": "window"
+    },
+    {
+     "axis": "y",
+     "at": 0,
+     "a": 0,
+     "b": 304,
+     "kind": "window"
+    },
+    {
+     "axis": "y",
+     "at": 432,
+     "a": 0,
+     "b": 304,
+     "kind": "window"
+    },
+    {
+     "axis": "x",
+     "at": 304,
+     "a": 0,
+     "b": 432,
+     "kind": "window"
+    },
+    {
+     "axis": "y",
+     "at": 96,
+     "a": 0,
+     "b": 192,
+     "kind": "glass"
+    },
+    {
+     "axis": "y",
+     "at": 96,
+     "a": 192,
+     "b": 304,
+     "kind": "panel"
+    },
+    {
+     "axis": "x",
+     "at": 192,
+     "a": 0,
+     "b": 96,
+     "kind": "panel"
+    },
+    {
+     "axis": "x",
+     "at": 144,
+     "a": 96,
+     "b": 432,
+     "kind": "glass"
+    },
+    {
+     "axis": "x",
+     "at": 184,
+     "a": 96,
+     "b": 432,
+     "kind": "panel"
+    },
+    {
+     "axis": "y",
+     "at": 240,
+     "a": 184,
+     "b": 304,
+     "kind": "panel"
+    },
+    {
+     "axis": "y",
+     "at": 320,
+     "a": 184,
+     "b": 304,
+     "kind": "panel"
+    }
+   ],
+   "doors": [
+    {
+     "id": "f1d1",
+     "axis": "y",
+     "at": 96,
+     "a": 90,
+     "b": 122,
+     "kind": "glass"
+    },
+    {
+     "id": "f1d2",
+     "axis": "y",
+     "at": 96,
+     "a": 148,
+     "b": 180,
+     "kind": "glass"
+    },
+    {
+     "id": "f1d3",
+     "axis": "x",
+     "at": 144,
+     "a": 120,
+     "b": 152,
+     "kind": "glass"
+    },
+    {
+     "id": "f1d4",
+     "axis": "x",
+     "at": 144,
+     "a": 360,
+     "b": 392,
+     "kind": "glass"
+    },
+    {
+     "id": "f1d5",
+     "axis": "x",
+     "at": 184,
+     "a": 120,
+     "b": 152,
+     "kind": "wood"
+    },
+    {
+     "id": "f1d6",
+     "axis": "x",
+     "at": 184,
+     "a": 256,
+     "b": 288,
+     "kind": "wood"
+    },
+    {
+     "id": "f1d7",
+     "axis": "x",
+     "at": 184,
+     "a": 336,
+     "b": 368,
+     "kind": "glass"
+    },
+    {
+     "id": "f1d8",
+     "axis": "x",
+     "at": 192,
+     "a": 20,
+     "b": 52,
+     "kind": "wood"
+    }
+   ],
+   "items": [
+    {
+     "id": "f1-lift",
+     "type": "elevator",
+     "x": 16,
+     "y": 0,
+     "dir": "y+",
+     "props": {
+      "entrance": true
+     }
+    },
+    {
+     "id": "f1-hall-table",
+     "type": "hall-table",
+     "x": 80,
+     "y": 100,
+     "dir": "y+"
+    },
+    {
+     "id": "f1-plant-a",
+     "type": "plant-big",
+     "x": 12,
+     "y": 172,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-plant-b",
+     "type": "plant-snake",
+     "x": 84,
+     "y": 80,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-coat",
+     "type": "coat-rack",
+     "x": 70,
+     "y": 150,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-board",
+     "type": "cork-board",
+     "x": 60,
+     "y": 2,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-isl-1",
+     "type": "desk-island",
+     "x": 152,
+     "y": 72,
+     "dir": "x+",
+     "props": {
+      "perSide": 3
+     }
+    },
+    {
+     "id": "f1-isl-2",
+     "type": "desk-island",
+     "x": 264,
+     "y": 72,
+     "dir": "x+",
+     "props": {
+      "perSide": 3
+     }
+    },
+    {
+     "id": "f1-isl-3",
+     "type": "desk-island",
+     "x": 376,
+     "y": 72,
+     "dir": "x+",
+     "props": {
+      "perSide": 3
+     }
+    },
+    {
+     "id": "f1-printer",
+     "type": "printer",
+     "x": 104,
+     "y": 6,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-cab-a",
+     "type": "cabinet",
+     "x": 140,
+     "y": 6,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-cab-b",
+     "type": "low-cabinet",
+     "x": 220,
+     "y": 6,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-shelf",
+     "type": "open-shelf",
+     "x": 300,
+     "y": 6,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-plant-c",
+     "type": "plant-tree",
+     "x": 414,
+     "y": 20,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-plant-d",
+     "type": "plant-big",
+     "x": 414,
+     "y": 128,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-plant-e",
+     "type": "plant-big",
+     "x": 112,
+     "y": 128,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-bev",
+     "type": "beverage-station",
+     "x": 340,
+     "y": 6,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-plant-f",
+     "type": "plant-snake",
+     "x": 420,
+     "y": 170,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-mt",
+     "type": "meeting-table",
+     "x": 144,
+     "y": 198,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-plant-g",
+     "type": "plant-big",
+     "x": 228,
+     "y": 290,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-wm",
+     "type": "wall-monitor",
+     "x": 98,
+     "y": 240,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-tea",
+     "type": "tea-table",
+     "x": 280,
+     "y": 244,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-lowcab",
+     "type": "low-cabinet",
+     "x": 262,
+     "y": 290,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-plant-h",
+     "type": "plant-snake",
+     "x": 250,
+     "y": 196,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-kit",
+     "type": "kitchenette",
+     "x": 370,
+     "y": 186,
+     "dir": "y+"
+    },
+    {
+     "id": "f1-fridge",
+     "type": "fridge",
+     "x": 336,
+     "y": 290,
+     "dir": "y+"
+    },
+    {
+     "id": "f1-tea-a",
+     "type": "tea-table",
+     "x": 352,
+     "y": 244,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-tea-b",
+     "type": "tea-table",
+     "x": 408,
+     "y": 244,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-plant-i",
+     "type": "plant-tree",
+     "x": 418,
+     "y": 288,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-pb-1",
+     "type": "phone-booth",
+     "x": 8,
+     "y": 268,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-pb-2",
+     "type": "phone-booth",
+     "x": 36,
+     "y": 268,
+     "dir": "x+"
+    },
+    {
+     "id": "f1-pb-3",
+     "type": "phone-booth",
+     "x": 64,
+     "y": 268,
+     "dir": "x+"
+    }
+   ]
+  },
+  {
+   "id": "f2",
+   "name": "2F",
+   "rooms": [
+    {
+     "id": "hall2",
+     "name": "ホール",
+     "kind": "hall",
+     "rects": [
+      [0, 0, 96, 160]
+     ],
+     "sign": [8, 144]
+    },
+    {
+     "id": "lounge",
+     "name": "ラウンジ",
+     "kind": "free",
+     "rects": [
+      [96, 0, 288, 160]
+     ],
+     "sign": [104, 144]
+    },
+    {
+     "id": "focus",
+     "name": "集中ブース",
+     "kind": "work",
+     "rects": [
+      [0, 160, 96, 304]
+     ],
+     "floor": "carpet",
+     "sign": [8, 288]
+    },
+    {
+     "id": "cafeteria",
+     "name": "カフェテリア",
+     "kind": "break",
+     "rects": [
+      [96, 160, 336, 304]
+     ],
+     "floor": "parquet",
+     "sign": [104, 288]
+    },
+    {
+     "id": "deck",
+     "name": "デッキ",
+     "kind": "hall",
+     "rects": [
+      [288, 0, 432, 160],
+      [336, 160, 432, 304]
+     ],
+     "outdoor": true,
+     "sign": [344, 288]
+    }
+   ],
+   "walls": [
+    {
+     "axis": "y",
+     "at": 0,
+     "a": 0,
+     "b": 304,
+     "kind": "window"
+    },
+    {
+     "axis": "x",
+     "at": 304,
+     "a": 0,
+     "b": 336,
+     "kind": "window"
+    },
+    {
+     "axis": "x",
+     "at": 0,
+     "a": 0,
+     "b": 288,
+     "kind": "window"
+    },
+    {
+     "axis": "x",
+     "at": 0,
+     "a": 288,
+     "b": 432,
+     "kind": "rail"
+    },
+    {
+     "axis": "y",
+     "at": 432,
+     "a": 0,
+     "b": 304,
+     "kind": "rail"
+    },
+    {
+     "axis": "x",
+     "at": 304,
+     "a": 336,
+     "b": 432,
+     "kind": "rail"
+    },
+    {
+     "axis": "y",
+     "at": 96,
+     "a": 0,
+     "b": 160,
+     "kind": "glass"
+    },
+    {
+     "axis": "y",
+     "at": 96,
+     "a": 160,
+     "b": 304,
+     "kind": "panel"
+    },
+    {
+     "axis": "x",
+     "at": 160,
+     "a": 0,
+     "b": 96,
+     "kind": "glass"
+    },
+    {
+     "axis": "x",
+     "at": 160,
+     "a": 96,
+     "b": 336,
+     "kind": "glass"
+    },
+    {
+     "axis": "y",
+     "at": 288,
+     "a": 0,
+     "b": 160,
+     "kind": "glass"
+    },
+    {
+     "axis": "y",
+     "at": 336,
+     "a": 160,
+     "b": 304,
+     "kind": "glass"
+    }
+   ],
+   "doors": [
+    {
+     "id": "f2d1",
+     "axis": "y",
+     "at": 96,
+     "a": 96,
+     "b": 128,
+     "kind": "glass"
+    },
+    {
+     "id": "f2d2",
+     "axis": "x",
+     "at": 160,
+     "a": 20,
+     "b": 52,
+     "kind": "glass"
+    },
+    {
+     "id": "f2d3",
+     "axis": "y",
+     "at": 96,
+     "a": 200,
+     "b": 232,
+     "kind": "wood"
+    },
+    {
+     "id": "f2d4",
+     "axis": "x",
+     "at": 160,
+     "a": 150,
+     "b": 182,
+     "kind": "glass"
+    },
+    {
+     "id": "f2d5",
+     "axis": "y",
+     "at": 288,
+     "a": 60,
+     "b": 92,
+     "kind": "glass"
+    },
+    {
+     "id": "f2d6",
+     "axis": "y",
+     "at": 336,
+     "a": 200,
+     "b": 232,
+     "kind": "glass"
+    }
+   ],
+   "items": [
+    {
+     "id": "f2-lift",
+     "type": "elevator",
+     "x": 16,
+     "y": 0,
+     "dir": "y+",
+     "props": {
+      "entrance": true
+     }
+    },
+    {
+     "id": "f2-plant-a",
+     "type": "plant-big",
+     "x": 12,
+     "y": 140,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-hall-table",
+     "type": "hall-table",
+     "x": 80,
+     "y": 100,
+     "dir": "y+"
+    },
+    {
+     "id": "f2-board",
+     "type": "cork-board",
+     "x": 60,
+     "y": 2,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-hd-1",
+     "type": "desk",
+     "x": 124,
+     "y": 24,
+     "dir": "y+",
+     "props": {
+      "label": "フリーデスク"
+     }
+    },
+    {
+     "id": "f2-hd-2",
+     "type": "desk",
+     "x": 172,
+     "y": 24,
+     "dir": "y+",
+     "props": {
+      "label": "フリーデスク"
+     }
+    },
+    {
+     "id": "f2-hd-3",
+     "type": "desk",
+     "x": 220,
+     "y": 24,
+     "dir": "y+",
+     "props": {
+      "label": "フリーデスク"
+     }
+    },
+    {
+     "id": "f2-rug",
+     "type": "rug",
+     "x": 104,
+     "y": 70,
+     "dir": "x+",
+     "props": {
+      "w": 80,
+      "d": 72,
+      "style": "sage"
+     }
+    },
+    {
+     "id": "f2-sofa-1",
+     "type": "sofa",
+     "x": 120,
+     "y": 72,
+     "dir": "y+"
+    },
+    {
+     "id": "f2-ct",
+     "type": "low-table",
+     "x": 144,
+     "y": 102,
+     "dir": "x+",
+     "props": {
+      "plant": true
+     }
+    },
+    {
+     "id": "f2-sofa-2",
+     "type": "sofa",
+     "x": 120,
+     "y": 112,
+     "dir": "y-"
+    },
+    {
+     "id": "f2-cb",
+     "type": "cushion-bench",
+     "x": 252,
+     "y": 70,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-bb-1",
+     "type": "beanbag",
+     "x": 220,
+     "y": 130,
+     "dir": "x-",
+     "props": {
+      "color": "Y"
+     }
+    },
+    {
+     "id": "f2-bb-2",
+     "type": "beanbag",
+     "x": 196,
+     "y": 130,
+     "dir": "x-",
+     "props": {
+      "color": "p"
+     }
+    },
+    {
+     "id": "f2-plant-b",
+     "type": "plant-tree",
+     "x": 272,
+     "y": 14,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-plant-c",
+     "type": "plant-big",
+     "x": 272,
+     "y": 140,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-lamp",
+     "type": "floor-lamp",
+     "x": 190,
+     "y": 100,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-pb-1",
+     "type": "phone-booth",
+     "x": 8,
+     "y": 270,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-pb-2",
+     "type": "phone-booth",
+     "x": 36,
+     "y": 270,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-pb-3",
+     "type": "phone-booth",
+     "x": 64,
+     "y": 270,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-egg-1",
+     "type": "egg-chair",
+     "x": 30,
+     "y": 210,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-egg-2",
+     "type": "egg-chair",
+     "x": 70,
+     "y": 210,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-fs",
+     "type": "focus-sofa",
+     "x": 48,
+     "y": 250,
+     "dir": "y+"
+    },
+    {
+     "id": "f2-dt-1",
+     "type": "dine-table",
+     "x": 112,
+     "y": 204,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-dt-2",
+     "type": "dine-table",
+     "x": 232,
+     "y": 204,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-dt-3",
+     "type": "dine-table",
+     "x": 112,
+     "y": 260,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-dt-4",
+     "type": "dine-table",
+     "x": 232,
+     "y": 260,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-counter",
+     "type": "dine-counter",
+     "x": 200,
+     "y": 162,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-bev",
+     "type": "beverage-station",
+     "x": 104,
+     "y": 164,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-plant-d",
+     "type": "plant-big",
+     "x": 324,
+     "y": 290,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-deck-door",
+     "type": "entrance-door",
+     "x": 330,
+     "y": 0,
+     "dir": "y+",
+     "props": {
+      "entrance": true
+     }
+    },
+    {
+     "id": "f2-tea-1",
+     "type": "tea-table",
+     "x": 400,
+     "y": 50,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-tea-2",
+     "type": "tea-table",
+     "x": 400,
+     "y": 110,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-deck-bb-1",
+     "type": "beanbag",
+     "x": 360,
+     "y": 200,
+     "dir": "x-",
+     "props": {
+      "color": "Y"
+     }
+    },
+    {
+     "id": "f2-deck-bb-2",
+     "type": "beanbag",
+     "x": 396,
+     "y": 200,
+     "dir": "x-",
+     "props": {
+      "color": "p"
+     }
+    },
+    {
+     "id": "f2-deck-lt",
+     "type": "low-table",
+     "x": 378,
+     "y": 232,
+     "dir": "x+",
+     "props": {
+      "plant": true
+     }
+    },
+    {
+     "id": "f2-deck-st-1",
+     "type": "low-stool",
+     "x": 352,
+     "y": 250,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-deck-st-2",
+     "type": "low-stool",
+     "x": 404,
+     "y": 250,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-planter-1",
+     "type": "planter",
+     "x": 300,
+     "y": 120,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-planter-2",
+     "type": "planter",
+     "x": 408,
+     "y": 8,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-planter-3",
+     "type": "planter",
+     "x": 410,
+     "y": 272,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-planter-4",
+     "type": "planter",
+     "x": 344,
+     "y": 272,
+     "dir": "x+"
+    },
+    {
+     "id": "f2-deck-lamp",
+     "type": "floor-lamp",
+     "x": 376,
+     "y": 150,
+     "dir": "x+"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String             @id @default(cuid())
+  loginId           String             @unique
+  name              String
+  passwordHash      String
+  /// admin / member
+  role              String             @default("member")
+  locale            String?
+  disabledAt        DateTime?
+  createdAt         DateTime           @default(now())
+  sessions          Session[]
+  passwordResets    PasswordReset[]
+  pushSubscriptions PushSubscription[]
+  voProfile         VoProfile?
+  voPresences       VoPresence[]
+  voMessages        VoMessage[]
+  voReactions       VoReaction[]
+  voParts           VoPart[]
+}
+
+/// idはトークンのsha256（hex）
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Invite {
+  id          String   @id @default(cuid())
+  tokenHash   String   @unique
+  role        String
+  expiresAt   DateTime
+  maxUses     Int
+  uses        Int      @default(0)
+  createdById String
+  createdAt   DateTime @default(now())
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model MapDraft {
+  id          Int      @id @default(1)
+  json        Json
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
+model MapVersion {
+  id          Int      @id @default(autoincrement())
+  json        Json
+  createdAt   DateTime @default(now())
+  createdById String?
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// バーチャルオフィスのきせかえ・机・ひとこと（1人1行）
+model VoProfile {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 髪・髪色・肌・服の色・ズボン・服の種類・小物 {hair,hc,sk,cl,pt,ot,ac}。ot・acの無い古い行はTシャツ・なしで読む
+  look      Json
+  /// 机の飾り（記号はsrc/lib/virtual-office/presence.tsのDECOS）。なしはnull
+  deco      String?
+  /// パソコン（mac/win）
+  pc        String   @default("mac")
+  /// 外部モニターの枚数（0〜2）
+  mon       Int      @default(0)
+  /// 外付けキーボード（none/colorful/dark/split）
+  keyboard  String   @default("none")
+  memo      String   @default("")
+  /// ひとことを書いた日（設定のタイムゾーンでのYYYY-MM-DD）。今日でなければ空として扱う
+  memoDate  String?
+  updatedAt DateTime @updatedAt
+}
+
+/// バーチャルオフィスのその日の在室（1人1日1行）
+model VoPresence {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 設定のタイムゾーンでのYYYY-MM-DD
+  date         String
+  room         String
+  /// 席のない入室（会議室のおまかせ）はnull
+  seatId       String?
+  /// work/focus/break/meet（手で選んだもの）
+  status       String    @default("work")
+  away         Boolean   @default(false)
+  focusUntil   DateTime?
+  /// 押し忘れ(ハートビート2時間なし)の席を満席のときにほかの人が使い、席なしにされた。次に開いたとき席へ戻す
+  seatLost     Boolean   @default(false)
+  /// 作業エリアが満席で、入室のときに作業エリア以外へ自動で座らせた(部屋のステータスを当てない)。自分で移ると外す
+  overflow     Boolean   @default(false)
+  enteredAt    DateTime  @default(now())
+  /// 退勤した時刻
+  leftAt       DateTime?
+  lastSeenAt   DateTime  @default(now())
+  /// 最後に触った時刻(タブが見えている間の操作)。終業後の自動退出に使う。入室した時刻で始まる
+  lastActiveAt DateTime  @default(now())
+  /// 終業後に操作がなくて自動で退出した(入室し直すとfalse)。本人が次に開いたときのお知らせ用
+  autoLeft     Boolean   @default(false)
+  /// 公開で席がなくなり、共用部へ席なしで動かした。次に開いたとき「席がなくなりました」を出して外す
+  seatGone     Boolean   @default(false)
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
+/// バーチャルオフィスの部屋のチャット（その日だけ）
+model VoMessage {
+  id        String       @id @default(cuid())
+  date      String
+  room      String
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 取り消すと空にする
+  text      String       @db.VarChar(300)
+  /// 名指しした相手のuserId(送ったときに同じ部屋にいた人だけ)
+  mentions  String[]     @default([])
+  /// 送った本人が取り消した時刻(送ってから1分以内だけ)。取り消した発言は中身を返さない
+  deletedAt DateTime?
+  createdAt DateTime     @default(now())
+  reactions VoReaction[]
+
+  @@index([date, room, createdAt])
+}
+
+/// バーチャルオフィスのチャットへのリアクション（1人1発言1種類につき1行。押し直すと消す）
+model VoReaction {
+  id        Int       @id @default(autoincrement())
+  messageId String
+  message   VoMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// good/heart/clap/laugh/thanks（types.tsのVO_REACTIONS）
+  kind      String
+  createdAt DateTime  @default(now())
+
+  @@unique([messageId, userId, kind])
+}
+
+/// バーチャルオフィスの自分あての出来事（声かけ・手を振る・声かけへの返事）
+model VoEvent {
+  id         Int      @id @default(autoincrement())
+  date       String
+  toUserId   String
+  fromUserId String
+  /// call/wave/answer
+  kind       String
+  /// answerのとき、元のcallのid
+  callId     Int?
+  /// answerのとき go/later
+  answer     String?
+  createdAt  DateTime @default(now())
+
+  @@index([toUserId, id])
+}
+
+/// バーチャルオフィスの設定(キーごとに1行)。timeZone・workEndHour・weather({lat,lon})・callUrls(部屋id→URL)・seasonMode("auto"・"none"・events.tsのid)・vapid(プッシュの鍵)
+model VoSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// みんなで使うドット絵のパーツ（髪型・服・小物）。lookでは"u:<id>"で指す。消すのはdeletedAtを入れるだけ。dataの形はsrc/lib/parts/validate.ts
+model VoPart {
+  id          String    @id @default(cuid())
+  /// hair / ot / ac
+  kind        String
+  name        String
+  data        Json
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([createdById])
+}
