@@ -32,7 +32,7 @@ A self-hosted, seat-based virtual office in isometric pixel art. You sit at a de
 ## Quick start
 
 ```sh
-git clone <this repository>
+git clone https://github.com/yhrym/pixeloft.git
 cd pixeloft
 docker compose up -d
 ```
@@ -114,7 +114,9 @@ Keep exactly one `app` container. The 1-second state cache, emotes, heartbeat th
 
 The map editor is also published as a static page, so you can design a floor plan before you run anything:
 
-`https://<your-github-user>.github.io/pixeloft/`
+`https://yhrym.github.io/pixeloft/editor/`
+
+The docs site is at <https://yhrym.github.io/pixeloft/>.
 
 It stores the draft in your browser only and sends nothing to a server. Use **Open sample** to start from the bundled sample.
 

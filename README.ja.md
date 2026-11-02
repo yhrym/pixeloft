@@ -32,7 +32,7 @@
 ## クイックスタート
 
 ```sh
-git clone <このリポジトリ>
+git clone https://github.com/yhrym/pixeloft.git
 cd pixeloft
 docker compose up -d
 ```
@@ -114,7 +114,9 @@ docker compose up -d --build
 
 マップエディタは静的ページとしても公開できるので、何も立てずに間取りを作れます。
 
-`https://<your-github-user>.github.io/pixeloft/`
+`https://yhrym.github.io/pixeloft/editor/`
+
+ドキュメントのサイトは<https://yhrym.github.io/pixeloft/>です。
 
 下書きはブラウザの中だけに保存し、サーバーには何も送りません。**サンプルを開く**で、同梱のサンプルから始められます。
 

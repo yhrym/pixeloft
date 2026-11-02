@@ -2172,22 +2172,30 @@ const view = { s: 2, x: 0, y: 0 }; // view.xはエンジンの絵での画面の
 const NX = x => -x;
 const isPhone = () => innerWidth < 600;
 const TAGFS = s => (s < 2 ? 12 : s === 2 ? 13 : s === 3 ? 14 : s === 4 ? 15 : 16); // 名札・吹き出しの文字(読みやすさのため最小12px。×2未満は名札が混むので12px。名札の高さは +5px)
-function hudInsets() { return isPhone() ? { top: 44, bottom: 64 } : { top: 40, bottom: 14 }; }
+function hudInsets() { if (preview) return { top: 8, bottom: 8 }; return isPhone() ? { top: 44, bottom: 64 } : { top: 40, bottom: 14 }; }
 // 構図(全体・自分に寄せる・最初の構図・寄せ戻し)の上下の余白
 function camInsets() { return hudInsets(); }
 // 「全体」の倍率: BOXがHUDを除いた画面に入る最大。×2未満は0.25刻み(×1.25〜×1.75、入らなければ×0.25まで)。ふだんのズームは整数のまま
+// プレビュー(エディタ)の「全体」は背景ではなく、いまの階の部屋の矩形の和に少し余白をつけた範囲に合わせる。ふだんはBOX
+function fitBox() {
+  const rs = preview ? FL[FLOOR].rooms.flatMap(r => r.rects) : [];
+  if (!rs.length) return BOX;
+  const m = 16, x0 = Math.min(...rs.map(q => q[0])) - m, y0 = Math.min(...rs.map(q => q[1])) - m, x1 = Math.max(...rs.map(q => q[2])) + m, y1 = Math.max(...rs.map(q => q[3])) + m;
+  const pts = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]];
+  return { x0: Math.min(...pts.map(([X, Y]) => PX(X, Y))), x1: Math.max(...pts.map(([X, Y]) => PX(X, Y))), y0: Math.min(...pts.map(([X, Y]) => PY(X, Y, WH))), y1: Math.max(...pts.map(([X, Y]) => PY(X, Y, 0))) + SLAB };
+}
 function fitScale() {
-  const { top, bottom } = camInsets(), aw = innerWidth - 16, ah = innerHeight - top - bottom;
-  const bw = BOX.x1 - BOX.x0, bh = BOX.y1 - BOX.y0, raw = Math.min(aw / bw, ah / bh);
-  const s = raw >= 2 ? Math.min(6, Math.floor(raw)) : Math.max(0.25, Math.floor(raw * 4) / 4);
+  const { top, bottom } = camInsets(), aw = innerWidth - 16, ah = innerHeight - top - bottom, B = fitBox();
+  const bw = B.x1 - B.x0, bh = B.y1 - B.y0, raw = Math.min(aw / bw, ah / bh);
+  const s = preview ? Math.min(6, Math.max(0.1, Math.floor(raw * 20) / 20)) : raw >= 2 ? Math.min(6, Math.floor(raw)) : Math.max(0.25, Math.floor(raw * 4) / 4); // プレビューは1/20刻みで枠いっぱいに
   return { s, fits: bw * s <= aw && bh * s <= ah };
 }
 function frameAll() {
-  const { top, bottom } = camInsets(), f = fitScale();
+  const { top, bottom } = camInsets(), f = fitScale(), B = fitBox();
   view.s = f.s;
   const ah = innerHeight - top - bottom;
-  view.x = (BOX.x0 + BOX.x1) / 2 - innerWidth / 2 / view.s;
-  view.y = BOX.y0 - (top + (ah - (BOX.y1 - BOX.y0) * view.s) / 2) / view.s;
+  view.x = (B.x0 + B.x1) / 2 - innerWidth / 2 / view.s;
+  view.y = B.y0 - (top + (ah - (B.y1 - B.y0) * view.s) / 2) / view.s;
   applyScale();
 }
 function centerOn(wx, wy) {

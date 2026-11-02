@@ -26,10 +26,10 @@ jobs:
       - run: npm ci
         env:
           PUPPETEER_SKIP_DOWNLOAD: "1"
-      - run: npm run build:pages
+      - run: npm run build:gh-pages
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist-pages
+          path: dist-site
 
   deploy:
     needs: build

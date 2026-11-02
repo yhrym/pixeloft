@@ -26,9 +26,9 @@ export default function Preview({ src, map, blocked, failed }: { src: string; ma
   }, [map, blocked]);
 
   return (
-    <div className="relative h-full w-full bg-neutral-200">
+    <div className="relative h-full w-full">
       <iframe ref={frame} src={src} title="preview" className="h-full w-full border-0" />
-      {(blocked || error) && <p className="absolute inset-x-0 top-1 bg-white/90 text-center text-sm text-red-700">{blocked ?? failed}</p>}
+      {(blocked || error) && <div className="absolute inset-0 flex items-center justify-center bg-[#e9edf7] p-6 text-center text-[13px] font-semibold text-[#566077]">{blocked ?? failed}</div>}
     </div>
   );
 }

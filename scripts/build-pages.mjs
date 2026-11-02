@@ -33,3 +33,4 @@ for (const n of ["index", "preview"]) {
 }
 await cp("src/app/icon.svg", `${out}/icon.svg`); // アプリのアイコンをそのまま使う
 await cp("src/pages-editor/.nojekyll", `${out}/.nojekyll`).catch(() => writeFile(`${out}/.nojekyll`, ""));
+for (const f of ["catalog-thumbs.png", "catalog-thumbs.json"]) await cp(`public/${f}`, `${out}/${f}`); // エディタのサムネイル(npm run build:thumbsで作る)

@@ -28,4 +28,4 @@ const localStore: EditorStore = {
 
 const locale: Locale = navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en";
 document.documentElement.lang = locale;
-createRoot(document.getElementById("root")!).render(<EditorClient store={localStore} locale={locale} previewSrc="preview.html" autosave sample={(locale === "ja" ? sampleJa : sampleEn) as OfficeMap} />);
+createRoot(document.getElementById("root")!).render(<EditorClient store={localStore} locale={locale} previewSrc="preview.html" thumbsBase="" autosave sample={(locale === "ja" ? sampleJa : sampleEn) as OfficeMap} />);
