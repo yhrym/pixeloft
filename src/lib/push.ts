@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import { prisma } from "./db.ts";
+import { isAllowedPushEndpoint } from "./push-endpoint.ts";
 
 /** Service Workerへ渡す通知の中身。`tag` が同じ通知は端末上で1件にまとまる。 */
 export type PushPayload = {
@@ -72,6 +73,8 @@ export async function deliver(
   let sent = 0;
   const expired: string[] = [];
   for (const subscription of subscriptions) {
+    // 保存済みでも許可外の送り先には送らず、失効扱いにして消す
+    if (!isAllowedPushEndpoint(subscription.endpoint)) { expired.push(subscription.endpoint); continue; }
     try {
       await send(subscription, JSON.stringify(payload));
       sent += 1;

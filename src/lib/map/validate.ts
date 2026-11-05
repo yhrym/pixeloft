@@ -1,5 +1,5 @@
 /** マップJSONの検証。エディタ(クライアント)と公開(サーバー)で同じものを使う。純TS */
-import { CATALOG, DOOR_KINDS, FLOOR_KINDS, WALL_KINDS } from "../../engine/catalog.js";
+import { CATALOG, DOOR_KINDS, FLOOR_KINDS, PLUGIN_STRICT, WALL_KINDS } from "../../engine/catalog.js";
 import { seatsOf } from "../../engine/map.js";
 import type { OfficeMap } from "../../engine/map.js";
 import { VO_EVENT_DECORS } from "../virtual-office/events.ts";
@@ -10,6 +10,9 @@ export const MAP_MAX_BYTES = 2 * 1024 * 1024;
 export const MAX_FLOORS = 5;
 export const MAX_SPAN = 1024;
 export const MAX_TEXT = 40;
+const MAX_RECTS = 4096; // 1階は最大64×64マス
+const MAX_ITEMS = 20000;
+const MAX_OVERLAPS = 100;
 export const ROOM_KINDS = ["work", "meeting", "break", "free", "hall"];
 const DIRS = ["x+", "x-", "y+", "y-"];
 const BAD_KEYS = ["__proto__", "constructor", "prototype"];
@@ -140,6 +143,8 @@ export function validateMap(input: unknown): Issue[] {
       const id = idOf(it, "item", fid) ?? undefined;
       if (!num(it.x) || !num(it.y)) { bad("item.xy", fid, id); continue; }
       xs.push(it.x); ys.push(it.y);
+      // 「<プラグインのid>:<名前>」でカタログに無い物は、プラグインを外した置き物
+      if (typeof it.type === "string" && it.type.includes(":") && !has(CATALOG, it.type)) { err("map.err.pluginMissing", fid, id, { plugin: it.type.split(":")[0] }); continue; }
       if (typeof it.type !== "string" || !has(CATALOG, it.type)) { err("map.err.badItemType", fid, id); continue; }
       const c = CATALOG[it.type as keyof typeof CATALOG] as { dirs: string[]; props: Rec; boxes?: (d: string, p: Rec) => { b: number[]; block?: boolean }[] };
       if (typeof it.dir !== "string" || !DIRS.includes(it.dir) || !c.dirs.includes(it.dir)) { err("map.err.badDir", fid, id); continue; }
@@ -152,29 +157,45 @@ export function validateMap(input: unknown): Issue[] {
       }
       if (!propsOk) continue;
       if (props.entrance === true) entrances.push(it.type);
+      const plugin = it.type.includes(":");
       try {
+        PLUGIN_STRICT.on = true; // プラグインのboxes・seatsは普段は例外を握りつぶすので、ここでは投げさせる
         for (const { b, block } of c.boxes?.(it.dir, { ...c.props, ...props }) ?? []) {
           if (block !== false) boxes.push({ id: id ?? "", b: [it.x + b[0], it.y + b[1], it.x + b[3], it.y + b[4], b[2], b[5]] });
         }
-      } catch { bad("item.props", fid, id); }
+        if (plugin) (CATALOG[it.type as keyof typeof CATALOG] as { seats?: (d: string, p: Rec) => unknown }).seats?.(it.dir, { ...c.props, ...props });
+      } catch { if (plugin) err("map.err.pluginBroken", fid, id, { plugin: it.type.split(":")[0] }); else bad("item.props", fid, id); } finally { PLUGIN_STRICT.on = false; }
     }
     if (!entrances.some((t) => (CATALOG[t as keyof typeof CATALOG] as Rec).entrance)) err("map.err.noEntrance", fid);
 
     if (xs.length > 0 && (Math.max(...xs) - Math.min(...xs) > MAX_SPAN || Math.max(...ys) - Math.min(...ys) > MAX_SPAN)) err("map.err.bboxTooLarge", fid);
 
-    // 重なり: 部屋の矩形どうし(同じ部屋の中も)、置き物のブロックする箱(別の置き物どうし)
-    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
-      if (overlap(rects[i].r, rects[j].r)) err("map.err.roomOverlap", fid, rects[i].room, { name: nm(rects[i].room), other: nm(rects[j].room) });
+    // 重なり: 部屋の矩形どうし(同じ部屋の中も)、置き物のブロックする箱(別の置き物どうし)。x0順に並べ、次のx0が右端以上になったら内側を打ち切る
+    // 上限を超えた階は重なりを調べない(最悪ケースで時間もエラー件数も膨らむため)。shortcut: 重なりの報告は階ごとに100件まで
+    const floorName = (typeof f.name === "string" ? f.name : fid.id).slice(0, MAX_TEXT);
+    if (rects.length > MAX_RECTS) err("map.err.tooManyRects", fid, undefined, { floor: floorName, max: MAX_RECTS });
+    else {
+      const order = rects.map((_, i) => i).sort((p, q) => rects[p].r[0] - rects[q].r[0] || p - q);
+      const hits: [number, number][] = [];
+      for (let i = 0; i < order.length && hits.length < MAX_OVERLAPS; i++) for (let j = i + 1; j < order.length && rects[order[j]].r[0] < rects[order[i]].r[2]; j++) {
+        if (overlap(rects[order[i]].r, rects[order[j]].r)) hits.push([Math.min(order[i], order[j]), Math.max(order[i], order[j])]);
+      }
+      hits.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+      for (const [i, j] of hits.slice(0, MAX_OVERLAPS)) err("map.err.roomOverlap", fid, rects[i].room, { name: nm(rects[i].room), other: nm(rects[j].room) });
     }
-    boxes.sort((p, q) => p.b[0] - q.b[0]);
-    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length && boxes[j].b[0] < boxes[i].b[2]; j++) {
-      const [p, q] = [boxes[i], boxes[j]];
-      if (p.id !== q.id && overlap(p.b, q.b) && p.b[4] < q.b[5] && q.b[4] < p.b[5]) err("map.err.itemOverlap", fid, p.id, { other: q.id });
+    if (f.items.length > MAX_ITEMS) err("map.err.tooManyItems", fid, undefined, { floor: floorName, max: MAX_ITEMS });
+    else {
+      boxes.sort((p, q) => p.b[0] - q.b[0]);
+      let n = 0;
+      for (let i = 0; i < boxes.length && n < MAX_OVERLAPS; i++) for (let j = i + 1; j < boxes.length && boxes[j].b[0] < boxes[i].b[2]; j++) {
+        const [p, q] = [boxes[i], boxes[j]];
+        if (p.id !== q.id && overlap(p.b, q.b) && p.b[4] < q.b[5] && q.b[4] < p.b[5]) { err("map.err.itemOverlap", fid, p.id, { other: q.id }); n++; }
+      }
     }
   }
 
   // 警告は、型が正しいマップだけ(seatsOfは信用できる形を前提にしている)
-  if (out.some((i) => i.level === "error" && /^map\.err\.(badType|badId|badItemType|badDir|badProp|badRect|roomNoRects|badRoomKind)$/.test(i.key))) return out;
+  if (out.some((i) => i.level === "error" && /^map\.err\.(badType|badId|badItemType|pluginMissing|badDir|badProp|badRect|roomNoRects|badRoomKind)$/.test(i.key))) return out;
   const m = input as unknown as OfficeMap;
   try {
     const got = new Set(seatsOf(m).map((s: { id: string }) => s.id));
@@ -188,6 +209,7 @@ export function validateMap(input: unknown): Issue[] {
         const touches = f.doors.some((d) => r.rects.some(([x0, y0, x1, y1]) => d.axis === "y"
           ? (d.at === x0 || d.at === x1) && d.a < y1 && d.b > y0
           : (d.at === y0 || d.at === y1) && d.a < x1 && d.b > x0));
+        if (r.sign && !r.rects.some(([x0, y0, x1, y1]) => r.sign![0] >= x0 && r.sign![0] < x1 && r.sign![1] >= y0 && r.sign![1] < y1)) warn("map.warn.signOutside", f, r.id, { room: r.name || r.id });
         if (!touches) warn("map.warn.roomNoDoor", f, r.id, { name: r.name || r.id });
       }
     }

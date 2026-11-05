@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { csrfGuard } from "@/lib/auth/route";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
+import { isAllowedPushEndpoint } from "@/lib/push-endpoint";
 import { t } from "@/i18n";
 import { getLocale } from "@/lib/locale";
 
@@ -19,11 +20,7 @@ function validSubscription(value: SubscriptionInput) {
   const p256dh = typeof value.keys?.p256dh === "string" ? value.keys.p256dh : "";
   const auth = typeof value.keys?.auth === "string" ? value.keys.auth : "";
   if (!endpoint || !p256dh || !auth || endpoint.length > MAX || p256dh.length > MAX || auth.length > MAX) return null;
-  try {
-    if (new URL(endpoint).protocol !== "https:") return null;
-  } catch {
-    return null;
-  }
+  if (!isAllowedPushEndpoint(endpoint)) return null;
   return { endpoint, p256dh, auth };
 }
 

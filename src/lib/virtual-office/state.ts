@@ -3,6 +3,7 @@ import type { User } from "@prisma/client";
 import { t, type Locale } from "../../i18n/index.ts";
 import { prisma } from "../db.ts";
 import { hasPart, partsIndex } from "../parts/store.ts";
+import { pluginStates } from "../plugins/index.ts";
 import { getSettings } from "../settings.ts";
 import { dateKey } from "../time.ts";
 import { recentEmotes } from "./emotes.ts";
@@ -197,6 +198,9 @@ export async function buildState(user: User, locale: Locale, since?: number, idl
     }
   }
 
+  // プラグインの状態は人ごと。1秒の共有キャッシュには入れない
+  const plugins = await pluginStates({ user, locale, now, date, idx, users: async () => sh.users });
+
   return {
     serverTime: now.toISOString(),
     date,
@@ -221,6 +225,7 @@ export async function buildState(user: User, locale: Locale, since?: number, idl
     isAdmin: user.role === "admin",
     partsVersion: parts.version,
     season: activeEvent(settings.seasonMode, date),
+    plugins,
     // 公開中のマップにある部屋のURLだけ返す
     meetUrls: Object.fromEntries(Object.entries(settings.callUrls).filter(([id]) => idx.roomById.has(id))),
     autoLeftAt: mine?.autoLeft && mine.leftAt ? mine.leftAt.toISOString() : null,

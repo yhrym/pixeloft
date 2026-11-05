@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { canModifyPart } from "@/lib/parts/permission";
 import { partsPageData } from "@/lib/parts/page";
+import { AdminShell } from "../../../components";
 import { PartEditor } from "../../PartEditor";
 import { PARTS_MSG_KEYS, type PartView } from "../../lib";
 
@@ -13,9 +14,8 @@ export default async function EditPart({ params }: { params: Promise<{ id: strin
   if (!part) notFound();
   if (!canModifyPart(user, part)) redirect("/parts");
   return (
-    <main className="max-w-5xl">
-      <h1 className="text-xl">{m["parts.editor.edit"]}: {m[`parts.kind.${part.kind}`]}</h1>
+    <AdminShell title={m["parts.editor.edit"].replace("{kind}", m[`parts.kind.${part.kind}`])} back={m["parts.toList"]} backHref="/parts" wide>
       <PartEditor kind={part.kind} part={part} parts={parts as PartView[]} look={look} m={m} />
-    </main>
+    </AdminShell>
   );
 }

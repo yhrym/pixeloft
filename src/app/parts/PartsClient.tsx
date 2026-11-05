@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { setCustomParts } from "@/engine/sprites.js";
 import type { PartKind } from "@/lib/parts/validate";
+import { Wordmark } from "../components";
 import { drawBody, type Look, type Msgs, type PartView } from "./lib";
 
 function Thumb({ part, look }: { part: PartView; look: Look }) {
@@ -31,29 +32,29 @@ export function PartsClient({ parts: initial, look, meId, isAdmin, m }: { parts:
   }
   return (
     <>
-      <h1 className="text-xl">{m["parts.title"]}</h1>
-      <p className="mt-1 text-sm text-neutral-600">{m["parts.sub"]}</p>
-      <p className="mt-2"><Link className="underline" href="/">{m["parts.toOffice"]}</Link></p>
-      {error && <p role="alert" className="mt-2 text-red-700">{error}</p>}
+      <div className="pg-bar"><Wordmark /><Link className="pg-back" href="/">{"← "}{m["parts.toOffice"]}</Link></div>
+      <h1 className="pg-title">{m["parts.title"]}</h1>
+      <p className="pg-sub">{m["parts.sub"]}</p>
+      {error && <p role="alert" className="pg-error">{error}</p>}
       {(["hair", "ot", "ac"] as PartKind[]).map((k) => (
-        <section key={k} className="mt-5">
-          <h2 className="flex items-center gap-3">{m[`parts.kind.${k}`]}<a className="text-sm underline" href={`/parts/new?kind=${k}`}>{m["parts.new"]}</a></h2>
-          <ul className="mt-2 flex flex-wrap gap-3">
+        <section key={k} className="pg-card">
+          <h2 className="flex items-center justify-between gap-3">{m[`parts.kind.${k}`]}<a className="pg-btn pg-btn-sm" href={`/parts/new?kind=${k}`}>{m["parts.new"]}</a></h2>
+          <ul className="pg-parts">
             {parts.filter((p) => p.kind === k).map((p) => (
-              <li key={p.id} className="rounded border border-neutral-300 p-2" data-part={p.id}>
+              <li key={p.id} className="pg-part" data-part={p.id}>
                 <Thumb part={p} look={look} />
-                <div className="mt-1 font-bold">{p.name}</div>
-                <div className="text-xs text-neutral-600">{m["parts.by"].replace("{name}", p.createdByName)}</div>
-                <div className="mt-1 flex gap-3 text-sm">
-                  <a className="underline" href={`/parts/new?from=${p.id}`}>{m["parts.copyAndEdit"]}</a>
+                <div className="pg-part-name">{p.name}</div>
+                <div className="pg-hint" style={{ marginTop: 0 }}>{m["parts.by"].replace("{name}", p.createdByName)}</div>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                  <a className="pg-link" href={`/parts/new?from=${p.id}`}>{m["parts.copyAndEdit"]}</a>
                   {(isAdmin || p.createdById === meId) && <>
-                    <a className="underline" href={`/parts/${p.id}/edit`}>{m["parts.edit"]}</a>
-                    <button type="button" className="underline" onClick={() => remove(p)}>{m["parts.delete"]}</button>
+                    <a className="pg-link" href={`/parts/${p.id}/edit`}>{m["parts.edit"]}</a>
+                    <button type="button" className="pg-link pg-link-danger" onClick={() => remove(p)}>{m["parts.delete"]}</button>
                   </>}
                 </div>
               </li>
             ))}
-            {parts.every((p) => p.kind !== k) && <li className="text-sm text-neutral-500">{m["parts.empty"]}</li>}
+            {parts.every((p) => p.kind !== k) && <li className="pg-muted">{m["parts.empty"]}</li>}
           </ul>
         </section>
       ))}

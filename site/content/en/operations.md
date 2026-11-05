@@ -26,16 +26,16 @@ docker compose up -d --build
 
 Database migrations run automatically when the app container starts.
 
-## Run a single app process
+## Why the app runs as a single process
 
-Keep exactly one `app` container. The 1-second state cache, emotes, heartbeat throttling and the login rate limit live in the process memory, so two processes would disagree with each other. One process handles a company-sized office fine.
+Keep exactly one `app` container. The 1-second state cache, emotes, heartbeat throttling and the login rate limit live in the process memory, so two processes would disagree with each other.
 
 ## TRUSTED_PROXY and the login rate limit
 
-The login rate limit allows 10 failures per 15 minutes.
+Once 10 failed logins have been counted for the same key within 15 minutes, further logins are refused until that 15-minute window ends. The key depends on `TRUSTED_PROXY`:
 
-- **Without `TRUSTED_PROXY`**, the app cannot tell clients apart, so failures are counted per login ID only. Anyone who knows an ID can type wrong passwords and lock that account out for 15 minutes.
-- **With `TRUSTED_PROXY=1`**, the app takes the client address from `X-Forwarded-For` (the last entry, which your proxy adds) and counts failures per ID and address, so an attacker only locks themselves out. The origin check on writes then uses `X-Forwarded-Host` and `X-Forwarded-Proto`.
+- **Without `TRUSTED_PROXY`**, the app cannot tell clients apart, so failures are counted per login ID only. Anyone who knows an ID can type wrong passwords and block logins to that account until the 15-minute window ends.
+- **With `TRUSTED_PROXY=1`**, the app takes the client address from `X-Forwarded-For` (the last entry, which your proxy adds) and counts failures per ID and address. The origin check on writes then uses `X-Forwarded-Host` and `X-Forwarded-Proto`.
 
 Only set it when every request really passes through your proxy. The app trusts those headers from whoever can reach port 3000, so block direct access to that port with a firewall, or bind it to `127.0.0.1` with a compose override. See [Calls and notifications](../calls/) for a Caddy example.
 

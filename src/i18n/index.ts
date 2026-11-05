@@ -1,10 +1,12 @@
 import ja from "./ja.json" with { type: "json" };
 import en from "./en.json" with { type: "json" };
+// プラグインの文言(scripts/plugins.mjsが作る)
+import plugins from "../plugins/generated/i18n.json" with { type: "json" };
 
 export type Locale = "ja" | "en";
 export const LOCALES: Locale[] = ["ja", "en"];
 
-const dict: Record<Locale, Record<string, string>> = { ja, en };
+const dict: Record<Locale, Record<string, string>> = { ja: { ...ja, ...plugins.ja }, en: { ...en, ...plugins.en } };
 
 /** ja → キーそのものの順にフォールバックして、{name}を差し込む */
 export function t(locale: Locale, key: string, vars?: Record<string, string | number>): string {

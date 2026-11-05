@@ -6,7 +6,7 @@ description: Tools, shortcuts, moving JSON between the browser version and your 
 The map editor draws the floor plan. You edit on a top-down 2D grid and see an isometric preview drawn by the same engine as the app. It exists in two places:
 
 - **In the app** at `/editor` (admins only). It saves a draft on the server and lets you publish.
-- **In the browser** as a static page: the **Build your map in the browser** button on this site. It stores the draft in your browser's local storage and sends nothing to a server. There is no login, publishing or version list.
+- **In the browser** as a static page: the [browser map editor](../../editor/) opens without sign-up. The first time you open it, it shows the sample office, so try dragging a desk. It stores the draft in your browser's local storage and sends nothing to a server. There is no login, publishing or version list.
 
 ## What you can place
 
@@ -21,13 +21,13 @@ A floor is at most 64 by 64 cells. A map name and other text fields are at most 
 
 ## The layout
 
-The tool rail is on the far left (Select, Room, Wall, Door, Items). The Items palette sits next to it, with a search box and categories. The 2D plan is in the middle, with floor tabs on top and a zoom control in the corner. The right panel has an isometric preview (**Expand** makes it bigger), **Properties** for whatever is selected, and **Checks**. The **...** menu at the top right has Export JSON, Import JSON, Open sample and the shortcut list.
+The tool rail is on the far left (Select, Room, Wall, Door, Items). The Items palette sits next to it, with a search box and categories. The 2D plan is in the middle, with floor tabs on top and a zoom control in the corner. The right panel has an isometric preview (**Expand** makes it bigger), **Properties** for whatever is selected, and **Checks**. Drag the left edge of the right panel, or the bottom edge of the preview, to make them larger (double-click an edge to reset). The **...** menu at the top right has Export JSON, Import JSON, Open sample and the shortcut list (the browser version also has How to use (docs)).
 
 ## Tools
 
 | Tool | What it does |
 |---|---|
-| Select | Click to select. Drag an item to move it, or drag a room corner to resize it. |
+| Select | Click to select. Click anywhere on the cells an item covers to select it, then drag to move it. Drag a room corner to resize it. |
 | Room | Drag to make a room. Right after drawing, a small **Room settings** popover asks for the name and kind. Hold <kbd>Shift</kbd> while dragging to add a rectangle to the selected room instead of making a new one. |
 | Wall | Drag along cell edges to draw a wall. Two buttons above the plan draw walls in bulk: **Draw outer walls automatically** and **Draw walls between rooms**, each with its own wall type. |
 | Door | Hover a wall and click to place a door. |
@@ -43,7 +43,7 @@ Press <kbd>?</kbd> in the editor to see the same list.
 | Room, Wall, Door, Items tools | <kbd>2</kbd>, <kbd>3</kbd>, <kbd>4</kbd>, <kbd>5</kbd> |
 | Rotate the selected item | <kbd>R</kbd>, and <kbd>Shift</kbd>+<kbd>R</kbd> the other way |
 | Delete the selection | <kbd>Delete</kbd> or <kbd>Backspace</kbd> |
-| Move | Arrow keys: the selected item by one step (8 units), or the view when nothing is selected |
+| Move | Arrow keys: the selected item by half a cell, or the view when nothing is selected |
 | Undo / redo | <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Z</kbd>, <kbd>Shift</kbd>+<kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Z</kbd> (or <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Y</kbd>) |
 | Save | <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>S</kbd> |
 | Duplicate | <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>D</kbd> |
@@ -52,9 +52,9 @@ Press <kbd>?</kbd> in the editor to see the same list.
 | Add a rectangle to the selected room | <kbd>Shift</kbd> and drag with the Room tool |
 | Deselect, or close a popover or dialog | <kbd>Esc</kbd> |
 
-Edits are saved on their own a moment after you stop (the badge at the top shows Saved, Not saved or Saving).
+Edits are saved on their own a moment after you stop (the badge at the top shows Saved, Not saved or Saving; the browser version shows "Saved in this browser"). Instead of a Publish button, the browser version has an **Export JSON** button in the top bar.
 
-## Getting started checklist and Checks
+## Guidance for new maps and validation checks
 
 A new, empty map shows a small **Your first map** checklist: make a room, place an entrance, place a desk, then export (or publish in the app). You can dismiss it.
 
@@ -81,12 +81,12 @@ You can also pick the file on the first `/setup`.
 
 ## Publishing
 
-In the app, **Save draft** keeps your work-in-progress and **Publish** makes it the live map.
+In the app, your edits are saved to the server as a draft automatically (press <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>S</kbd> to save right away). The draft does not show in the office until you press **Publish**.
 
 Before it goes live, the server validates the map and lists what is wrong. Typical problems are a seat outside any room, overlapping objects, limits exceeded, or no entrance. Errors block publishing, warnings do not. The editor shows the same checks while you work.
 
 Each publish adds a new version. **Versions** lists the earlier ones, and **Publish this version** puts an old one live again as a new version. Catalog item ids are never removed, so older maps keep working.
 
-### What happens to people who are seated
+### Seated people
 
 When you publish, anyone whose seat or room no longer exists is moved to a common area **without a seat**, and they see a notice that the seat is gone. They can pick a new seat. Everyone else stays where they are. Check the preview and the validation list before you publish a map while people are in the office.

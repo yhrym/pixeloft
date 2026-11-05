@@ -1,0 +1,71 @@
+/* ダーツの窓。HUDのdock(縦に並ぶ小さい窓の置き場)の中に置く。見た目は本体の窓に合わせる: 角丸なし・紺のタイトルバー・2pxの黒白枠 */
+.vo-darts {
+  width: 278px; max-width: 100%; max-height: calc(var(--cb, calc(100% - 150px)) - var(--hud-top) - 16px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  background: #f4f6fa; color: #221f2c; border: 2px solid #f4f6fa; box-shadow: 0 0 0 2px #221f2c;
+  font-family: var(--vo-font); font-size: 12px; line-height: 1.4;
+}
+.vo-darts { position: relative; }
+.vo-darts * { box-sizing: border-box; }
+.vo-darts:focus { outline: none; }
+.vo-darts-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 1px 3px 1px 6px; background: #37486f; color: #fff; border-bottom: 2px solid #221f2c; }
+.vo-darts-head h2 { flex: 1; display: flex; align-items: center; margin: 0; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.vo-darts-head .pbtn.sm.ghost { padding: 1px 7px 2px; }
+.vo-darts-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 6px; box-shadow: inset -2px -2px 0 #dce5ec; }
+.vo-darts-body p { margin: 0; }
+.vo-darts :is(button, [tabindex="0"]):focus-visible { outline: 2px solid #28639a; outline-offset: 2px; }
+/* 畳んだとき: タイトルバーだけ。押すと開く */
+.vo-darts.is-mini { width: auto; overflow: visible; }
+.vo-darts .vo-darts-open {
+  display: flex; align-items: center; gap: 6px; margin: 0; padding: 3px 8px; border: 0; border-radius: 0;
+  background: #37486f; color: #fff; font: 700 13px/1.4 var(--vo-font); white-space: nowrap; cursor: pointer;
+}
+.vo-darts .vo-darts-open:hover { background: #46588a; }
+.vo-darts-open b { padding: 0 5px; background: #f4c651; color: #221f2c; }
+/* 今の番・ラウンド・持ち時間 */
+.vo-darts-turn { display: flex; align-items: center; gap: 8px; padding: 3px 6px; background: #37486f; color: #dce5ec; border: 2px solid #221f2c; white-space: nowrap; }
+.vo-darts-turn b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #fff; font-size: 13px; }
+.vo-darts-turn b.me { flex: none; margin-right: auto; padding: 0 5px; background: #f4c651; color: #221f2c; }
+.vo-darts-turn i { font: 400 16px/1 "DotGothic16", sans-serif; font-style: normal; color: #fff; }
+/* 的: 120pxのバッファを2倍 */
+.vo-darts-board { display: block; width: 244px; height: 244px; margin: 0 auto; border: 2px solid #221f2c; image-rendering: pixelated; cursor: crosshair; }
+.vo-darts-hit { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 8px; min-height: 34px; }
+.vo-darts-hit small { color: #42536b; font-size: 12px; font-weight: 700; }
+.vo-darts-hit b { font: 400 32px/1 "DotGothic16", sans-serif; }
+.vo-darts-timeout { padding: 2px 8px; border: 2px solid #536e8a; background: #dce5ec; color: #172a45; font-size: 14px; font-weight: 700; }
+.vo-darts-hit em { padding: 1px 6px; background: #d24e4b; border: 2px solid #702c2d; color: #fff; font: 400 16px/1 "DotGothic16", sans-serif; }
+.vo-darts-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin: 0; padding: 0; list-style: none; }
+.vo-darts-slots li { display: flex; align-items: baseline; justify-content: center; gap: 4px; padding: 2px; border: 2px solid #8794a6; background: #fff; font: 400 16px/1 "DotGothic16", sans-serif; }
+.vo-darts-slots li b { font-weight: 400; color: #37486f; }
+.vo-darts-slots li.empty { border-style: dashed; color: #8794a6; font: 700 11px/16px var(--vo-font); }
+.vo-darts .pbtn.vo-darts-big { width: 100%; padding: 8px; font-size: 15px; }
+/* 投げるボタンは送信中・矢が飛んでいる間もdisabledにしない(フォーカスが外れてキーが届かなくなる)。見た目だけ薄く */
+.vo-darts .pbtn.vo-darts-big[aria-disabled="true"] { opacity: 0.55; cursor: default; }
+.vo-darts-help, .vo-darts-note { color: #42536b; }
+.vo-darts-rule { padding-top: 4px; border-top: 2px dashed #c3c7ce; color: #42536b; font-size: 11px; }
+/* 点数表: 今の番の人は黄色。ラウンドごとの点は1pxのすきまを罫線に */
+.vo-darts-players { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.vo-darts-players li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 6px; padding: 3px 5px; border: 2px solid #8794a6; background: #fff; }
+.vo-darts-players li.now { border-color: #221f2c; background: #fff3c4; box-shadow: inset 4px 0 0 #f4c651; }
+.vo-darts-players .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.vo-darts-players .pt, .vo-darts-rank b { display: flex; align-items: baseline; gap: 4px; }
+.vo-darts-players .pt small, .vo-darts-rank b small { color: #42536b; font-size: 11px; }
+.vo-darts-players .pt b, .vo-darts-rank b { font: 400 16px/1 "DotGothic16", sans-serif; }
+.vo-darts-rounds { grid-column: 1 / -1; display: grid; gap: 1px; padding: 1px; background: #c3c7ce; }
+.vo-darts-rounds span { min-width: 0; min-height: 18px; background: #f4f6fa; text-align: center; font: 400 16px/18px "DotGothic16", sans-serif; }
+.vo-darts-rounds .bust { background: #d24e4b; color: #fff; font: 700 9px/18px var(--vo-font); }
+/* 始める前・結果・ランキング */
+.vo-darts-box { display: grid; gap: 5px; padding: 6px 8px; border: 2px solid #221f2c; background: #fff; box-shadow: inset -2px -2px 0 #dce5ec; }
+.vo-darts-box h3 { margin: 2px 0 0; font-size: 13px; }
+.vo-darts-standing { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.vo-darts-standing li { padding: 1px 6px; border: 2px solid #8794a6; background: #f4f6fa; font-weight: 700; }
+.vo-darts-standing li.me { border-color: #3f7c3e; background: #d3ecc4; }
+.vo-darts-win { padding: 3px 6px; background: #f4c651; border: 2px solid #221f2c; font-size: 13px; font-weight: 700; }
+.vo-darts-win b { font: 400 16px/1 "DotGothic16", sans-serif; }
+.vo-darts-rank { display: grid; margin: 0; padding: 0; list-style: none; }
+.vo-darts-rank li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 2px 4px; }
+.vo-darts-rank li:nth-child(even) { background: #f4f6fa; }
+.vo-darts-rank li.me { background: #fff3c4; box-shadow: inset 0 0 0 2px #d24e4b; font-weight: 700; }
+.vo-darts-rank i { font: 400 16px/1 "DotGothic16", sans-serif; font-style: normal; color: #42536b; text-align: right; }
+.vo-darts-rank span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vo-darts-error { padding: 6px; border: 2px solid #9e3534; background: #f4d8d8; color: #702c2d; font-size: 13px; }
+.vo-darts-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

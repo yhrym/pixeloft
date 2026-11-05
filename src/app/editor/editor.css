@@ -9,7 +9,8 @@
   color: var(--ink); background: var(--bg); font-size: 13px; line-height: 1.45;
 }
 .pxe * { box-sizing: border-box; }
-.pxe button, .pxe input, .pxe select { font: inherit; color: inherit; }
+/* :whereで詳細度を0にする(ボタンごとの色を上書きしないように) */
+.pxe :where(button, input, select) { font: inherit; color: inherit; }
 .pxe button { cursor: pointer; }
 .pxe button:disabled { cursor: default; opacity: .4; }
 .pxe :focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; border-radius: 6px; }
@@ -118,8 +119,9 @@ select.pxe-input { padding-right: 26px; }
 .pxe-pill.error { background: var(--err-bg); color: var(--err); } .pxe-pill.warning { background: var(--warn-bg); color: var(--warn); } .pxe-pill.ok { background: var(--ok-bg); color: var(--ok); }
 
 .pxe-menu { position: absolute; top: calc(100% + 6px); z-index: 70; min-width: 220px; padding: 6px; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--sh); }
-.pxe-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; text-align: left; }
-.pxe-menu button:hover { background: var(--navy-t); color: var(--navy); }
+.pxe-menu a { color: inherit; text-decoration: none; } /* buttonの色は付けない(削除の赤を消さない) */
+.pxe-menu :is(button, a) { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; text-align: left; }
+.pxe-menu :is(button, a):hover { background: var(--navy-t); color: var(--navy); }
 .pxe-menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 
 .pxe-dialog { background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(20, 26, 44, .35); }
@@ -134,4 +136,14 @@ select.pxe-input { padding-right: 26px; }
 .pxe-previewbar { position: absolute; top: 8px; right: 8px; z-index: 2; }
 .pxe-preview { background: #dde2ec; }
 .pxe-preview.big { position: fixed; inset: 24px; z-index: 75; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(20, 26, 44, .45); border: 1px solid var(--line); }
+.pxe-rz { position: absolute; z-index: 5; touch-action: none; }
+.pxe-rz::after { content: ""; position: absolute; background: transparent; }
+.pxe-rz-w { left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; }
+.pxe-rz-w::after { left: 3px; top: 0; bottom: 0; width: 2px; }
+.pxe-rz-h { left: 0; right: 0; bottom: -4px; height: 8px; z-index: 3; cursor: row-resize; }
+.pxe-rz-h::after { left: 0; right: 0; top: 3px; height: 2px; }
+.pxe-rz:hover::after { background: var(--navy-m); }
+.pxe-rz[data-on="true"]::after, .pxe-rz:focus-visible::after { background: var(--navy); }
+.pxe-rz:focus-visible { outline: none; }
+.pxe-resizing iframe { pointer-events: none; }
 @media (max-width: 899px) { .pxe-preview.big { inset: 8px; } }

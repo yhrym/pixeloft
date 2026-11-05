@@ -1,7 +1,17 @@
 import type { Dir, MapFloor } from "@/engine/map.js";
+import PLUGIN_THUMBS from "../../plugins/generated/thumbs.json" with { type: "json" };
 import { footprint, footprintOf, G, ROOM_COLOR, type Seg, type Sel } from "./shared";
 
 export type Thumbs = { img: HTMLImageElement; size: number; cols: number; idx: Map<string, number> };
+/** プラグインが同梱したサムネイル(plugins/<id>/thumbs/*.png)。本体のシートに無いidだけ使う */
+export const pluginThumbs = PLUGIN_THUMBS as Record<string, string>;
+const plugImgs = new Map<string, HTMLImageElement>();
+export function pluginImg(id: string): HTMLImageElement | undefined {
+  if (!Object.hasOwn(pluginThumbs, id)) return undefined;
+  let img = plugImgs.get(id);
+  if (!img) { img = new Image(); img.src = pluginThumbs[id]; plugImgs.set(id, img); }
+  return img;
+}
 export type DrawIn = {
   w: number; h: number; dpr: number; view: { x: number; y: number; z: number };
   floor: MapFloor; sel: Sel; hover: Sel; bad: Set<string>; warn: Set<string>; flash: Set<string>;
@@ -27,7 +37,9 @@ export function drawEditor(ctx: CanvasRenderingContext2D, o: DrawIn) {
   ctx.setTransform(o.dpr, 0, 0, o.dpr, 0, 0);
   ctx.fillStyle = "#f4f6fa";
   ctx.fillRect(0, 0, o.w, o.h);
-  ctx.scale(z, z);
+  // 東西を反転して表示(エンジンの画面が左右反転のため)。vxは右端の世界x
+  ctx.translate(o.w, 0);
+  ctx.scale(-z, z);
   ctx.translate(-vx, -vy);
   ctx.imageSmoothingEnabled = false;
   const x1 = vx + o.w / z, y1 = vy + o.h / z;
@@ -61,21 +73,6 @@ export function drawEditor(ctx: CanvasRenderingContext2D, o: DrawIn) {
       ctx.strokeRect(a, b, c - a, d - b); ctx.setLineDash([]); ctx.globalAlpha = 1;
     }
   }
-  // 部屋の名前
-  ctx.textBaseline = "middle";
-  for (const r of floor.rooms) {
-    const [a, b] = r.rects[0] ?? [0, 0];
-    const col = ROOM_COLOR[r.kind] ?? "#aaa";
-    const fs = px(11.5), padX = px(7), h = px(20);
-    ctx.font = `600 ${fs}px system-ui, sans-serif`;
-    const tw = ctx.measureText(r.name || "-").width, w = tw + padX * 2 + px(10);
-    ctx.fillStyle = "rgba(255,255,255,.92)"; rr(ctx, a + px(5), b + px(5), w, h, px(10)); ctx.fill();
-    ctx.strokeStyle = "rgba(52,68,107,.18)"; ctx.lineWidth = px(1); ctx.stroke();
-    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(a + px(5) + padX, b + px(5) + h / 2, px(3.5), 0, 7); ctx.fill();
-    ctx.fillStyle = "#1e2433"; ctx.fillText(r.name || "-", a + px(5) + padX + px(10), b + px(5) + h / 2 + px(0.5));
-    if (r.sign) { ctx.fillStyle = RED; ctx.beginPath(); ctx.arc(r.sign[0], r.sign[1], px(4), 0, 7); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = px(1.5); ctx.stroke(); }
-  }
-
   // 壁・扉
   ctx.lineCap = "butt";
   floor.walls.forEach((w, i) => {
@@ -95,10 +92,13 @@ export function drawEditor(ctx: CanvasRenderingContext2D, o: DrawIn) {
 
   // 置き物: 足もとの四角にサムネイル
   const thumb = (type: string, cx: number, cy: number, s: number, alpha = 1) => {
-    const i = thumbs?.idx.get(type);
-    if (!thumbs || i === undefined) return false;
+    const i = thumbs?.idx.get(type), pi = i === undefined ? pluginImg(type) : undefined;
+    if (!(thumbs && i !== undefined) && !pi?.complete) return false;
     ctx.globalAlpha = alpha;
-    ctx.drawImage(thumbs.img, (i % thumbs.cols) * thumbs.size, Math.floor(i / thumbs.cols) * thumbs.size, thumbs.size, thumbs.size, cx - s / 2, cy - s / 2, s, s);
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(-1, 1); // 画像は鏡像にしない
+    if (thumbs && i !== undefined) ctx.drawImage(thumbs.img, (i % thumbs.cols) * thumbs.size, Math.floor(i / thumbs.cols) * thumbs.size, thumbs.size, thumbs.size, -s / 2, -s / 2, s, s);
+    else ctx.drawImage(pi!, -s / 2, -s / 2, s, s);
+    ctx.restore();
     ctx.globalAlpha = 1;
     return true;
   };
@@ -110,11 +110,29 @@ export function drawEditor(ctx: CanvasRenderingContext2D, o: DrawIn) {
     ctx.strokeStyle = isBad ? RED : on ? NAVY : isWarn ? AMBER : hov ? "#6f7ea6" : "rgba(90,74,50,.55)"; ctx.lineWidth = px(on || isBad ? 2.5 : hov ? 2 : 1); rr(ctx, a, b, c - a, d - b, 3); ctx.stroke();
     const sz = Math.min(72, Math.max(28, Math.max(c - a, d - b) * 1.05));
     if (!thumb(it.type, (a + c) / 2, (b + d) / 2 - sz * 0.05, sz) && z > 0.35) {
-      ctx.fillStyle = "#4a3a2a"; ctx.font = `${px(10)}px system-ui, sans-serif`; ctx.textBaseline = "top"; ctx.fillText(o.lab(it.type), a + px(3), b + px(3));
+      ctx.fillStyle = "#4a3a2a"; ctx.font = `${px(10)}px system-ui, sans-serif`; ctx.textBaseline = "top"; ctx.save(); ctx.translate(c, b); ctx.scale(-1, 1); ctx.fillText(o.lab(it.type), px(3), px(3)); ctx.restore();
     }
     ctx.fillStyle = "#fff"; ctx.strokeStyle = NAVY; ctx.lineWidth = px(1); ctx.beginPath(); ctx.arc(it.x, it.y, px(2.5), 0, 7); ctx.fill(); ctx.stroke();
   }
   for (const s of o.seats) { ctx.fillStyle = "#1f9d63"; ctx.beginPath(); ctx.arc(s.x, s.y, px(4.5), 0, 7); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = px(1.5); ctx.stroke(); }
+
+  // 部屋の名前(置き物に隠れないよう、置き物のあとに描く)
+  ctx.textBaseline = "middle";
+  for (const r of floor.rooms) {
+    const [, b, a] = r.rects[0] ?? [0, 0, 0];
+    const col = ROOM_COLOR[r.kind] ?? "#aaa";
+    const fs = px(11.5), padX = px(7), h = px(20);
+    ctx.font = `600 ${fs}px system-ui, sans-serif`;
+    const tw = ctx.measureText(r.name || "-").width, w = tw + padX * 2 + px(10);
+    // 画面の左上(世界のmax-x,min-y)を原点に、文字が鏡文字にならない向きで描く
+    ctx.save(); ctx.translate(a, b); ctx.scale(-1, 1);
+    ctx.fillStyle = "rgba(255,255,255,.92)"; rr(ctx, px(5), px(5), w, h, px(10)); ctx.fill();
+    ctx.strokeStyle = "rgba(52,68,107,.18)"; ctx.lineWidth = px(1); ctx.stroke();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(px(5) + padX, px(5) + h / 2, px(3.5), 0, 7); ctx.fill();
+    ctx.fillStyle = "#1e2433"; ctx.fillText(r.name || "-", px(5) + padX + px(10), px(5) + h / 2 + px(0.5));
+    ctx.restore();
+    if (r.sign) { ctx.fillStyle = RED; ctx.beginPath(); ctx.arc(r.sign[0], r.sign[1], px(4), 0, 7); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = px(1.5); ctx.stroke(); }
+  }
 
   // 選択の取っ手(部屋の角。ドラッグで大きさを変えられる)
   if (sel?.k === "room") {

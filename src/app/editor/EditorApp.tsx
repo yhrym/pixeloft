@@ -7,5 +7,5 @@ import { apiStore } from "./store";
 
 /** /editor。サーバーのページが管理者を確かめたあと、API版の保存先で動かす */
 export function EditorApp({ locale }: { locale: Locale }) {
-  return <EditorClient store={apiStore} locale={locale} backHref="/" thumbsBase="/" />;
+  return <EditorClient store={apiStore} locale={locale} backHref="/" thumbsBase="/" autosave />;
 }

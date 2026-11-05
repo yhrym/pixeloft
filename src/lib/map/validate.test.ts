@@ -61,6 +61,23 @@ test("重なり: 部屋の矩形(同じ部屋の中も)・ブロックする置�
   assert.ok(!keys(mutate((m) => { m.floors[0].items.push({ id: "i2", type: "desk-island", x: 100 + 48 + 0, y: 100, dir: "x+", props: { perSide: 2 } }); })).includes("map.err.itemOverlap"));
 });
 
+test("上限: 1階の矩形4096個・置き物20000個(重なりを調べる前に弾く)。上限内なら重なりなしで通る", () => {
+  const rects = (n: number) => Array.from({ length: n }, (_, i) => [1000 + (i % 100) * 10, Math.floor(i / 100) * 10, 1000 + (i % 100) * 10 + 10, Math.floor(i / 100) * 10 + 10]);
+  const wide = (n: number) => mutate((m) => { m.floors[0].rooms[1].rects = rects(n); });
+  const k = keys(wide(5000), "error");
+  assert.ok(k.includes("map.err.tooManyRects") && !k.includes("map.err.roomOverlap"));
+  assert.ok(!keys(wide(3000)).includes("map.err.tooManyRects"));
+  assert.ok(!keys(wide(3000)).includes("map.err.roomOverlap"));
+  assert.ok(keys(mutate((m) => { m.floors[0].items.push(...Array.from({ length: 20001 }, (_, i) => ({ id: `p${i}`, type: "plant-big", x: i, y: 0, dir: "y+" }))); })).includes("map.err.tooManyItems"));
+});
+
+test("重なりの報告は同じ順(入力順の若いほうから)で、件数に上限がある", () => {
+  const ov = mutate((m) => { m.floors[0].rooms = [{ id: "a", name: "A", kind: "work", rects: [[0, 0, 20, 20], [30, 0, 50, 20]] }, { id: "b", name: "B", kind: "hall", rects: [[40, 0, 60, 20], [10, 0, 35, 20]] }]; });
+  assert.deepEqual(validateMap(ov).filter((i) => i.key === "map.err.roomOverlap").map((i) => [i.id, i.vars?.other]), [["a", "B"], ["a", "B"], ["a", "B"]]); // 矩形の組(0,3)(1,2)(1,3)の順
+  const many = mutate((m) => { m.floors[0].rooms = [{ id: "a", name: "A", kind: "work", rects: Array.from({ length: 300 }, () => [0, 0, 10, 10]) }]; });
+  assert.equal(keys(many).filter((x) => x === "map.err.roomOverlap").length, 100);
+});
+
 test("入口がない階はエラー。props.entranceがあってもカタログに入口がない置き物は入口にならない", () => {
   assert.ok(keys(mutate((m) => { m.floors[0].items.shift(); })).includes("map.err.noEntrance"));
   assert.ok(keys(mutate((m) => { m.floors[0].items[0].props = { entrance: false }; })).includes("map.err.noEntrance"));
@@ -102,8 +119,15 @@ test("i18n: カタログの全idと、検証のkeyが日英にある", async () 
   const { default: ja } = await import("../../i18n/ja.json", { with: { type: "json" } });
   const { default: en } = await import("../../i18n/en.json", { with: { type: "json" } });
   const src = (await import("node:fs")).readFileSync(new URL("./validate.ts", import.meta.url), "utf8");
-  const keys = [...Object.keys(CATALOG).map((k) => `catalog.${k}`), ...[...src.matchAll(/"(map\.(?:err|warn)\.\w+)"/g)].map((m) => m[1])];
+  const keys = [...Object.keys(CATALOG).filter((k) => !k.includes(":")).map((k) => `catalog.${k}`), ...[...src.matchAll(/"(map\.(?:err|warn)\.\w+)"/g)].map((m) => m[1])];
   for (const k of keys) { assert.ok(k in ja, `ja ${k}`); assert.ok(k in en, `en ${k}`); }
+});
+
+test("カタログに無い「プラグイン:名前」の置き物は pluginMissing、それ以外の知らない種類は badItemType のまま", () => {
+  const ks = keys(mutate((m) => { m.floors[0].items[1].type = "demo:dart"; }));
+  assert.ok(ks.includes("map.err.pluginMissing") && !ks.includes("map.err.badItemType"));
+  assert.deepEqual(validateMap(mutate((m) => { m.floors[0].items[1].type = "demo:dart"; })).find((i) => i.key === "map.err.pluginMissing")?.vars, { plugin: "demo" });
+  assert.ok(keys(mutate((m) => { m.floors[0].items[1].type = "dart"; })).includes("map.err.badItemType"));
 });
 
 test("種類の一覧は実行時のカタログの値で検査する(全種類が通り、一覧にない値は弾く)", () => {
@@ -119,4 +143,11 @@ test("部屋に関するメッセージは名前を持つ", () => {
   assert.ok(w.some((i) => i.key === "map.warn.roomNoDoor" && i.vars?.name === "Alpha"));
   const o = validateMap(mutate((m) => { m.floors[0].rooms[1].rects = [[200, 0, 320, 192]]; m.floors[0].rooms[0].name = "Alpha"; m.floors[0].rooms[1].name = "Beta"; }));
   assert.ok(o.some((i) => i.key === "map.err.roomOverlap" && i.vars?.name === "Alpha" && i.vars?.other === "Beta"));
+});
+
+test("表札が部屋の外なら警告(エラーではない)", () => {
+  assert.deepEqual(keys(mutate((m) => { m.floors[0].rooms[0].sign = [8, 176]; })), []);
+  const m = mutate((x) => { x.floors[0].rooms[0].sign = [0, 0]; x.floors[0].rooms[0].rects = [[16, 16, 256, 192]]; });
+  assert.ok(keys(m, "warning").includes("map.warn.signOutside"));
+  assert.ok(!hasErrors(validateMap(m)));
 });

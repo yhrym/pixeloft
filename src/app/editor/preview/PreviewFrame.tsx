@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import "@fontsource/dotgothic16/400.css";
 import "@/engine/office.css";
 import type { OfficeMap } from "@/engine/map.js";
+import type { OfficeCamera, OfficeHandle } from "@/engine/office.js";
 import { t, type Locale } from "@/i18n";
 import type { VoState } from "@/lib/virtual-office/types";
 
@@ -17,7 +18,8 @@ const emptyState = (): VoState => ({
 export function PreviewFrame({ locale }: { locale: Locale }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    let handle: { destroy(): void } | null = null;
+    let handle: OfficeHandle | null = null;
+    let camera: OfficeCamera | undefined;
     let root: HTMLDivElement | null = null;
     const clear = () => {
       try { handle?.destroy(); } catch { /* 途中で失敗したマウントの後始末 */ }
@@ -26,12 +28,13 @@ export function PreviewFrame({ locale }: { locale: Locale }) {
     };
     const onMessage = async (e: MessageEvent) => {
       if (e.origin !== location.origin || e.source !== parent || e.data?.type !== "map") return;
+      try { camera = handle?.camera(); } catch { /* 前のマウントが壊れていたら全体から */ }
       clear();
       try {
         const { mountOffice } = await import("@/engine/office.js");
         root = document.createElement("div");
         host.current!.appendChild(root);
-        handle = mountOffice(root, { map: e.data.map as OfficeMap, appName: "Pixeloft", initial: emptyState(), weather: null, send: () => Promise.reject(new Error("preview")), timeOfDay: "day", weatherKind: "sunny", preview: true, t: (key, vars) => t(locale, key, vars) });
+        handle = mountOffice(root, { map: e.data.map as OfficeMap, appName: "Pixeloft", initial: emptyState(), weather: null, send: () => Promise.reject(new Error("preview")), timeOfDay: "day", weatherKind: "sunny", preview: true, camera, t: (key, vars) => t(locale, key, vars) });
         parent.postMessage({ type: "result", ok: true }, location.origin);
       } catch {
         // shortcut: エンジンが描けない形のマップはメッセージだけ出す

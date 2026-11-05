@@ -5,6 +5,7 @@ import { hudHtml } from './hud.js';
 import { seatsOf } from './map.js';
 import { makeBackdrop } from './backdrop.js';
 import { CATALOG, planOf, DEFAULT_FLOOR } from './catalog.js';
+import PLUGIN_DRAW from '../plugins/generated/draw.js';
 import { REACTION_ICONS } from './emote-sprites.js';
 import { isHex } from './shade.js';
 import { PAL, HPH, MUG_HAND, HAIRS, HAIR_COLS, SKINS, CLOTHES, PANTS, OUTFITS, ACCS, lookup, mkMap, HAND, EMOTES, EMOTE_ICON, SIGN, DECO_SPR, DECOS, CLOCK, paintSprite, palState, outfitOf, setCustomParts, faceStamps, personStamps, bodyStamps, shiftStamps } from './sprites.js';
@@ -24,7 +25,7 @@ function mountEmpty(root, config) {
   root.querySelector('h1').textContent = config.appName || '';
   root.querySelector('p').textContent = tOf(config)('engine.empty');
   root.querySelector('.acts').append(...menuEls(config.menu));
-  return { update() {}, setParts() {}, miniOpen: () => false, worldCanvas: () => document.createElement('canvas'), destroy() { root.innerHTML = ''; } };
+  return { update() {}, setParts() {}, setPluginState() {}, miniOpen: () => false, worldCanvas: () => document.createElement('canvas'), destroy() { root.innerHTML = ''; } };
 }
 
 export function mountOffice(root, config) {
@@ -34,6 +35,7 @@ const _t = tOf(config);
 const preview = !!config.preview; // エディタのプレビュー: HUD・DOMの重ね物・操作の送信・描画以外のタイマーなし。カメラは床の全体、階のボタンだけ残す
 if (preview) root.classList.add('vo-preview');
 root.innerHTML = hudHtml(_t);
+if (config.dock && !preview) { const d = document.createElement('div'); d.className = 'dock'; d.append(config.dock); root.querySelector('.hud-bar').after(d); } // プラグインが小さい窓を置く所(HUDの中)
 // 後片付け: window・documentに付けたリスナーとタイマーはdestroyでまとめて外す(HUDの中の要素はinnerHTMLごと消える)
 const cleanups = [], timers = new Set();
 let destroyed = false;
@@ -78,6 +80,7 @@ const SKY_WX_NIGHT = { cloudy: ['#2b3046', 0.5], rain: ['#1e2232', 0.65], snow: 
 const WEATHERS = [['sunny', 'weather.sunny', 18], ['cloudy', 'weather.cloudy', 16], ['rain', 'weather.rain', 14], ['snow', 'weather.snow', 2]];
 const params = new URLSearchParams(location.search);
 // 時間帯と天気はconfig.timeOfDay・config.weatherKindで固定できる(ハーネス用)。固定しなければ時間帯はconfig.timeZoneの時刻、天気はconfig.weatherの値
+let PSTATE = config.initial?.plugins ?? {}, PSIG = JSON.stringify(PSTATE); // プラグインごとの状態(絵に渡す)。PSIGは変わったか見る用
 let SEASON = config.initial?.season ?? null; // いまの季節の飾りのid(applyStateで更新)。itemのseasonがこれと同じときだけ描く
 let TIME_FIXED = !!config.timeOfDay; // 固定したときは時計の10秒ごとの切り替えで戻らない
 let TIME = config.timeOfDay || zonedTime();
@@ -180,6 +183,8 @@ function flush(ol = true, oc = 'K') {
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const i = y * CW + x; if (L[i]) { if (!GHOST || ((x + y) & 1)) { FB[i] = L[i]; ZB[i] = LZ[i]; } L[i] = 0; } }
   bx0 = CW; by0 = CH; bx1 = -1; by1 = -1;
 }
+// 描きかけのレイヤーを捨てる(プラグインの絵が途中で投げたとき)
+function discardLayer() { for (let y = Math.max(0, by0); y <= by1; y++) for (let x = Math.max(0, bx0); x <= Math.min(CW - 1, bx1); x++) L[y * CW + x] = 0; bx0 = CW; by0 = CH; bx1 = -1; by1 = -1; }
 // 描きかけのレイヤーのx0〜x1列で、yTop(x) 行から下を消す。先に描いた物が手前にある(描く順と前後が逆の)所だけに使う
 function hideL(x0, x1, yTop) { for (let x = Math.max(x0, bx0); x <= Math.min(x1, bx1); x++) for (let y = Math.max(by0, yTop(x)); y <= by1; y++) L[y * CW + x] = 0; }
 // 箱: 上=明 / 左面(+Y向き)=中 / 右面(+X向き)=暗。eは上辺のハイライト色
@@ -483,6 +488,7 @@ const dseat = id => seatById(id) || nat({ id, cx: 0, cy: 0, x: 0, y: 0, face: 'S
 const seatsOfItem = id => SEATS.filter(st => st.item === id).map(nat);
 const CUSTOM_SEATS = new Set(['booth', 'focus', 'egg', 'bench', 'pbooth']); // 家具の絵の中で人も描く席(椅子の物を別に置かない)
 let FLOOR = (SEATS.find(s => s.type === 'office' && isIsland(s.room)) || SEATS[0])?.floor || FLS[0].id; // 見る階
+if (preview && config.camera && FLS.some(f => f.id === config.camera.floor)) FLOOR = config.camera.floor; // プレビューの描き直しで見ていた階を保つ
 // 会議室(いくつでも)。spots=席(椅子と立ち見)、c=椅子の真ん中、plusAt=入りきれない人数「+N」を出す所(扉の外)、inAt=歩いて入る人の行き先(扉の内側)
 const MEETS = ROOMS.filter(r => r.kind === 'meeting').map(r => {
   const f = FL[floorOf(r.id)], spots = ALLSEATS.filter(s => s.room === r.id), chairs = spots.filter(s => s.type === 'meet'), q = r.rects[0], mid = [(q[0] + q[2]) >> 1, (q[1] + q[3]) >> 1];
@@ -694,8 +700,8 @@ function drawMeetSpot(sp, p, hover) {
   if (p) { GHOST = !!p.away; drawPerson(PX(sp.cx, sp.cy), PY(sp.cx, sp.cy, 8), p, sp.face); flush(); GHOST = false; personFx(p, sp.cx, sp.cy, 8, sp.face); }
   c.after();
 }
-function drawMeetTable(X, Y, it) { // 白い天板で両端が丸い8人がけのテーブル。原点は天板の角(幅44×長さ88)。椅子は両側
-  const X0 = X, Y0 = Y, X1 = X + 44, Y1 = Y + 88, cxm = X + 22, cym = (Y0 + Y1) / 2, rr = 22;
+function drawMeetTable(X, Y, it, n = 4) { // 白い天板で両端が丸いテーブル。原点は天板の角(幅44×長さ22n)。椅子は両側にn脚ずつ
+  const X0 = X, Y0 = Y, X1 = X + 44, Y1 = Y + 22 * n, cxm = X + 22, cym = (Y0 + Y1) / 2, rr = 22;
   for (const [x, y] of [[X0 + 10, Y0 + 12], [X1 - 12, Y0 + 12], [X0 + 10, Y1 - 14], [X1 - 12, Y1 - 14]]) box(x, y, 0, x + 2, y + 2, 10, 'm', 'm', 'n');
   flush();
   const inTop = (X, Y) => (Y >= Y0 + rr && Y < Y1 - rr) || (X - cxm + 0.5) ** 2 + (Y - (Y < Y0 + rr ? Y0 + rr : Y1 - rr) + 0.5) ** 2 <= rr * rr;
@@ -707,13 +713,13 @@ function drawMeetTable(X, Y, it) { // 白い天板で両端が丸い8人がけ�
   const all = ALLSEATS.filter(s => s.item === it.id && s.type === 'meet'), m = MEET[all[0]?.room], ppl = m ? meetLayout(m.id).spots : [];
   const chairs = all.map(s => ({ s, n: nat(s) })).sort((a, b) => (a.n.face === 'SE' ? 0 : 1) - (b.n.face === 'SE' ? 0 : 1) || a.n.cy - b.n.cy); // 絵の向きでSE側→NW側、奥から。回した卓でも描く順が同じになる
   const pc = i => { if (!chairs[i]) return; const { s: sp, n } = chairs[i], se = n.face === 'SE'; carryPC(m && ppl[m.spots.indexOf(sp)], se ? X + 6 : X + 30, n.cy - 5, se ? 'x-' : 'x+', 12); };
-  pc(0); pc(1); pc(2); pc(3);
+  for (let i = 0; i < n; i++) pc(i);
   box(cxm - 6, Y0 + 9, 12, cxm, Y0 + 15, 13, 'V', 'V', 'U'); flush(); // 書類
   box(cxm - 3, cym - 10, 12, cxm + 3, cym - 4, 14, 'k', 'k', 'K'); flush(); // 会議用スピーカー
   mugOnDesk(cxm, cym + 16, 12, 'w');
   box(cxm - 3, Y1 - 7, 12, cxm + 7, Y1 - 1, 13, 'l', 'm', 'n'); flush();
   box(cxm - 3, Y1 - 2, 13, cxm + 7, Y1 - 1, 18, 'm', 'n', 'n'); flush(); // テーブルのノートPC(モニター側の端。画面を低くして、両側の手前のパソコンにかからないようにした)
-  pc(4); pc(5); pc(6); pc(7);
+  for (let i = n; i < 2 * n; i++) pc(i);
 }
 function drawDisplayStand(X, Y, front) { // 大きいモニター(スタンド)。原点は足もとの角(幅36×奥行4)。画面は部屋の中を向くのでカメラからは背面
   for (const x of [X + 9, X + 25]) box(x, Y + 1, 0, x + 2, Y + 3, 16, 'm', 'm', 'n');
@@ -843,22 +849,60 @@ function drawDoor(d) {
 }
 // エレベーター(入口): 扉は+Y側を向く。階数表示つき
 const EV_GLYPH = { 1: ['kYk', 'YYk', 'kYk', 'kYk', 'YYY'], 2: ['YYY', 'kkY', 'YYY', 'Ykk', 'YYY'], 3: ['YYY', 'kkY', 'kYY', 'kkY', 'YYY'], 4: ['YkY', 'YkY', 'YYY', 'kkY', 'kkY'], 5: ['YYY', 'Ykk', 'YYY', 'kkY', 'YYY'], F: ['YYY', 'Ykk', 'YYk', 'Ykk', 'Ykk'] }; // 階数表示の字(3×5)
-function drawElevatorShaft(ex, ey) { // 原点は箱の角(幅64×奥行72)。扉は+Y側
-  const X0 = ex, X1 = ex + 64, Y0 = ey, Y1 = ey + 72, H = 30, op = Math.min(4, FL[FLOOR].ev) * 4, mid = ex + 32;
+function drawElevatorShaft(ex, ey, w = 64, d = 72, gap = 32) { // 原点は箱の角(幅w×奥行d、扉の開口gap)。扉は+Y側
+  const X0 = ex, X1 = ex + w, Y0 = ey, Y1 = ey + d, H = 30, op = Math.min(4, FL[FLOOR].ev) * (gap / 8), mid = ex + w / 2, h2 = gap / 2;
   box(X0, Y0, 0, X1, Y1, H, 'm', 'X', 'Z', 'l');
   for (let X = X0; X <= X1; X++) for (let Z = 0; Z < H; Z++) if ((X * 7 + Z * 13) % 11 === 0) wp(X, Y1, Z, cc('Z'));
-  for (let X = ex + 13; X < ex + 51; X++) for (let Z = 0; Z < 26; Z++) { // 扉と枠
-    let ch = (X < ex + 16 || X >= ex + 48 || Z >= 23) ? 'l' : null;
+  for (let X = mid - h2 - 3; X < mid + h2 + 3; X++) for (let Z = 0; Z < 26; Z++) { // 扉と枠
+    let ch = (X < mid - h2 || X >= mid + h2 || Z >= 23) ? 'l' : null;
     if (!ch) { const left = X < mid, dd = left ? mid - X : X - mid + 1; ch = dd <= op ? (Z > 18 ? 'n' : 'k') : (X === mid - 1 - op || X === mid + op ? 'n' : (Z % 7 === 3 ? 'l' : 'V')); }
     wp(X, Y1, Z, cc(ch));
   }
   // 階数表示(最下階から数えた番号とF)と矢印(画面全体を左右反転するので、ここでは裏返して描く)
   const dg = EV_GLYPH[Math.min(FLS.indexOf(FL[FLOOR]) + 1, 5)], fg = EV_GLYPH.F;
-  paintL(Y1, ex + 26, 30, ['kkkkkkkkkkkk', ...dg.map((r, i) => 'k' + r + 'k' + fg[i] + 'k' + (i < 3 ? '*' : 'k') + 'kk'), 'kkkkkkkkkkkk'].map(r => [...r].reverse().join('')));
-  for (const z of [11, 14]) wp(ex + 53, Y1, z, cc('Y'));
+  paintL(Y1, mid - 6, 30, ['kkkkkkkkkkkk', ...dg.map((r, i) => 'k' + r + 'k' + fg[i] + 'k' + (i < 3 ? '*' : 'k') + 'kk'), 'kkkkkkkkkkkk'].map(r => [...r].reverse().join('')));
+  for (const z of [11, 14]) wp(mid + h2 + 5, Y1, z, cc('Y'));
   // 奥の外壁(高さWH)は先に描いてあるが、この箱より手前。壁の上面とその上の輪郭線から下は壁に隠れる
   hideL(OX + X1, CW - 1, x => OY + (Math.max(x - OX - 2 * WT, 2 * X1 - x + OX) >> 1) - WH - 1);
   flush();
+}
+function drawBookshelf(X, Y) { // 背の高い本棚(幅32×奥行10・高さ40)。正面(+X)に、段ごとに色とりどりの背表紙
+  const f = propFrame(X, Y, 32, 10, 'x+');
+  f.bx(0, 0, 0, 32, 10, 40, 'e', 'e', 'd', 'c'); flush();
+  const cols = ['R', 'B', 'Y', 'G', 'q', 'W', 'N', 'O'];
+  for (let w = 0; w < 32; w++) for (let z = 1; z < 40; z++) {
+    const side = w < 2 || w > 29, board = z < 4 || z > 37 || (z - 4) % 9 === 0; // 左右の枠・底の台・段の板
+    if (side || board) f.face(0, w, z, 'd');
+    else { const zb = z - 4 - (((z - 4) / 9) | 0) * 9, k = ((w - 2) / 3) | 0, h = 5 + (k * 7) % 4; f.face(0, w, z, zb <= h && (w - 2) % 3 < 2 ? cols[(k * 5 + (((z - 4) / 9) | 0) * 3) % 8] : 'k'); } // 背表紙(幅2・高さ5〜8)
+  }
+  flush(false);
+}
+function drawVendingMachine(X, Y) { // 飲み物の自販機(幅24×奥行16・高さ44)。正面(+X)に見本の段・ボタン・取り出し口。夜は見本の窓が光る
+  const f = propFrame(X, Y, 24, 16, 'x+');
+  f.bx(0, 0, 0, 24, 16, 44, 'R', 'R', 'R'); flush();
+  const lit = isLit(), can = ['B', 'W', 'Y', 'G', 'R', 'O'];
+  for (let w = 2; w < 17; w++) for (let z = 22; z < 40; z++) { // 見本の窓(3段)
+    const row = ((z - 22) / 6) | 0, zz = (z - 22) % 6, k = ((w - 2) / 3) | 0;
+    f.face(0, w, z, zz === 5 ? 'm' : (w - 2) % 3 < 2 && zz < 4 ? can[(k + row * 2) % 6] : (lit ? '*' : 'l'), lit);
+  }
+  for (let z = 22; z < 40; z++) { f.face(0, 1, z, 'k'); f.face(0, 17, z, 'k'); }
+  for (let w = 1; w <= 17; w++) { f.face(0, w, 21, 'k'); f.face(0, w, 40, 'k'); }
+  for (let z = 24; z < 38; z += 4) for (let w = 19; w < 22; w++) { f.face(0, w, z, 'k'); f.face(0, w, z + 1, lit ? '*' : 'U', lit); } // ボタン
+  for (let w = 19; w < 22; w++) f.face(0, w, 12, 'k'); // 硬貨の口
+  for (let w = 3; w < 17; w++) for (let z = 3; z < 11; z++) f.face(0, w, z, z === 10 || z === 3 || w === 3 || w === 16 ? 'm' : 'k'); // 取り出し口
+  flush(false);
+}
+function drawReceptionCounter(X, Y) { // 受付カウンター(奥行16×幅64・高さ28)。来客側の+X面に化粧板、天板に小さいベル
+  const f = propFrame(X, Y, 64, 16, 'x+');
+  f.bx(0, 0, 0, 64, 16, 22, 'a', 'b', 'a'); flush();
+  for (let w = 0; w < 64; w++) for (let z = 1; z < 22; z++) { // 化粧板(縦の目地で区切った羽目板)
+    f.face(0, w, z, w % 16 === 0 || w === 63 || z === 1 || z === 21 ? 'c' : (z === 6 || z === 16) && w % 16 > 1 && w % 16 < 15 ? 'a' : 'b');
+  }
+  f.bx(0, 0, 22, 64, 16, 25, 'W', 'V', 'U', 'W'); flush(true, 'U'); // 天板
+  const [bx, by] = f.pt(46, 8);
+  box(bx - 3, by - 3, 25, bx + 3, by + 3, 26, 'Y', 'Y', 'O', 'W'); box(bx - 1, by - 1, 26, bx + 1, by + 1, 28, 'Y', 'Y', 'O', 'W'); flush(); // ベル
+  const [mx, my] = f.pt(30, 8);
+  box(mx - 2, my - 3, 25, mx + 2, my + 3, 26, 'k', 'k', 'K'); flush(); // メモ台
 }
 function drawStairs(X0, Y0) { // 階段の口(幅48×奥行56)。+Y側の開口の中に、上へ向かう段が見える
   const X1 = X0 + 48, Y1 = Y0 + 56, H = 30;
@@ -1262,10 +1306,11 @@ for (const fl of FLS) {
   const add = (x0, y0, z0, x1, y1, z1, draw, block = true, pt = [(x0 + x1) >> 1, (y0 + y1) >> 1]) => out.push({ x0, y0, z0, x1, y1, z1, draw, block, pt, area: rooms.some(r => r.out && r.rects.some(q => inRect(pt[0], pt[1], q))) ? 'out' : undefined });
   for (const it of fm.items) {
     const c = CATALOG[it.type];
-    if (!c || !c.dirs.includes(it.dir)) throw new Error(`Unsupported item: ${it.type} ${it.dir}`);
+    if (!c?.dirs) continue; // プラグインが外れて、カタログに無い置き物は飛ばす
+    if (!c.dirs.includes(it.dir)) throw new Error(`Unsupported item: ${it.type} ${it.dir}`);
     const props = { ...c.props, ...it.props }, [nd, tr] = planOf(c.art || c.dirs, c.sym, it.dir); // 絵の向きndと、転置で描くか(catalog.jsのplanOf)
     const live = !it.season || it.season === SEASON; // shortcut: 歩けない範囲は開いた時点の季節で決める(季節がまたぐ瞬間は開き直すまで古い)
-    const paint = part => () => { if (it.season && it.season !== SEASON) return; TR = tr ? [it.x, it.y] : null; try { DRAW[it.type](it.x, it.y, nd, props, it, part); } finally { TR = null; } };
+    const paint = part => () => { if (it.season && it.season !== SEASON) return; TR = tr ? [it.x, it.y] : null; try { DRAW[it.type]?.(it.x, it.y, nd, props, it, part); } finally { TR = null; } };
     (c.boxes?.(it.dir, props) || []).forEach(({ b, block = true, draw = true }, part) => add(it.x + b[0], it.y + b[1], b[2], it.x + b[3], it.y + b[4], b[5], draw ? paint(part) : () => {}, block && live));
   }
   // 壁は16単位ずつに分けて並べ替える(扉のところは開ける)。奥側の外壁は先に描く(drawBackWall)。カメラ側の外壁(window・outer)は腰の高さで切り、手すり(rail)は床の外側に立てる
@@ -1478,7 +1523,9 @@ const DRAW = {
   'wood-desk': (X, Y, dir, p, it) => drawWindowDesk(X, Y, seatOf(it), p.mirror),
   sofa: (X, Y, dir, p, it) => drawSofa(X, Y, dir, it),
   'coffee-table': (X, Y, dir, p) => drawCoffeeTable(X, Y, p.seats),
-  elevator: drawElevatorShaft,
+  elevator: (X, Y) => drawElevatorShaft(X, Y),
+  'elevator-medium': (X, Y) => drawElevatorShaft(X, Y, 48, 56, 24),
+  'elevator-small': (X, Y) => drawElevatorShaft(X, Y, 40, 48, 16),
   kadomatsu: (X, Y) => kadomatsu(X, Y),
   daruma: (X, Y) => daruma(X, Y),
   'oni-standee': (X, Y) => oniStandee(X, Y),
@@ -1500,11 +1547,15 @@ const DRAW = {
   snowman: (X, Y) => snowman(X, Y),
   poinsettia: (X, Y) => poinsettia(X, Y),
   stairs: (X, Y) => drawStairs(X, Y),
+  bookshelf: (X, Y) => drawBookshelf(X, Y),
+  'vending-machine': (X, Y) => drawVendingMachine(X, Y),
+  'reception-counter': (X, Y) => drawReceptionCounter(X, Y),
   'entrance-door': (X, Y) => drawEntranceDoor(X, Y),
   kitchenette: drawKitchen,
   restroom: drawToiletInside,
   'hall-table': drawHallTable,
   'meeting-table': (X, Y, dir, p, it) => drawMeetTable(X, Y, it),
+  'meeting-table-small': (X, Y, dir, p, it) => drawMeetTable(X, Y, it, 2),
   'display-stand': (X, Y, dir, p, it) => drawDisplayStand(X, Y, it.dir[1] === '-'),
   whiteboard: (X, Y, dir, p, it) => drawWhiteboard(X, Y, it.dir[1] === '-'),
   'bar-counter': (X, Y, dir, p, it) => drawBarCounter(X, Y, it),
@@ -1551,6 +1602,16 @@ const DRAW = {
   'phone-booth': (X, Y, dir, p, it) => drawPhoneBooth2(X, Y, it),
   'low-table': (X, Y, dir, p) => drawLowTable2(X, Y, p.plant),
   'chair-cart': (X, Y) => drawChairCart2(X + 1, Y + 1),
+};
+// プラグインの絵: fn(k, { x, y, dir, props, item, part, state })。投げたらその置き物だけ飛ばし、コンソールには種類ごとに1回だけ出す
+const PK = { box, wp, cc, flush, spr, sprAt, standAt, paintL, paintR, PX, PY, isLit, now: () => Date.now(),
+  occupantOf: id => { const st = SEAT_BY_ID.get(id), p = st && occupantOf(st); return p ? { id: p.id, name: p.name } : null; } };
+const PLUGIN_ERR = new Set();
+for (const [type, fn] of Object.entries(PLUGIN_DRAW)) DRAW[type] = (X, Y, dir, props, item, part) => {
+  try { fn(PK, { x: X, y: Y, dir, props, item, part, state: PSTATE[type.split(':')[0]] }); } catch (e) {
+    discardLayer();
+    if (!PLUGIN_ERR.has(type)) { PLUGIN_ERR.add(type); console.error(`plugin draw ${type}:`, e); }
+  }
 };
 /* ============================================================
    動くもの(歩く人)
@@ -2196,6 +2257,10 @@ function frameAll() {
   const ah = innerHeight - top - bottom;
   view.x = (B.x0 + B.x1) / 2 - innerWidth / 2 / view.s;
   view.y = B.y0 - (top + (ah - (B.y1 - B.y0) * view.s) / 2) / view.s;
+  if (preview && config.frame) { // 呼び出し側の構図(ヒーローの寄せ・ずらし)。CSSのtranslate/scaleと違い、吹き出しの座標がずれない
+    const { k, x, y } = config.frame(), W = innerWidth, H = innerHeight, cx = view.x + W / 2 / view.s, cy = view.y + H / 2 / view.s;
+    view.s *= k; view.x = cx - (W / 2 - x * W) / view.s; view.y = cy - (H / 2 + y * H) / view.s; // 画面は左右反転しているので、xは画面の右向きを正にする
+  }
   applyScale();
 }
 function centerOn(wx, wy) {
@@ -2274,7 +2339,11 @@ function freeFocus() {
   return seatsMid(FL[FLOOR].rooms.map(r => fs.filter(st => st.room === r.id)).sort((a, b) => b.length - a.length)[0]); // 部屋ごと
 }
 function initialView() {
-  if (preview) { frameAll(); lastFrame = 'fit'; return; } // ×2(狭い画面とスマホは×1)。PCは画面の大きさによらず×2で寄せる(全体は「全体」ボタン)
+  if (preview) {
+    const c = config.camera;
+    if (c?.user) { Object.assign(view, { s: c.s, x: c.x, y: c.y }); userCam = true; applyScale(); } else frameAll(); // 描き直す前に自分でズーム・パンしていたら、その構図を戻す
+    lastFrame = 'fit'; return;
+  } // ×2(狭い画面とスマホは×1)。PCは画面の大きさによらず×2で寄せる(全体は「全体」ボタン)
   lastFrame = 'initial';
   view.s = isPhone() && pickSeat ? 2 : isPhone() || innerWidth < 700 || innerHeight < 520 ? 1 : 2; applyScale(false); // スマホも×1が下限(×1未満は「全体」を押したときだけ。席が押しにくくなる)。席選びは×2(×1だと空席の当たりが14×24px)
   // 見せたい所: 自分の席。席を選んでもらっているあいだは空いている島の席。入室前は人のいちばん多い島(PCで島に誰もいなければ島の真ん中)
@@ -2284,8 +2353,9 @@ function initialView() {
 }
 // パンできる範囲: 全階のまわり＋下の階まで
 const PAN = { x0: BOX.x0 - 120, x1: BOX.x1 + 160, y0: BOX.y0 - 30, y1: BOX.y1 + GZ + 150 };
-const minScale = () => 1; // 背景は単色なので下限は×1
+const minScale = () => preview ? Math.min(1, fitScale().s) : 1; // 背景は単色なので下限は×1(プレビューは「全体」まで縮められる)
 function clampView() {
+  if (preview && config.frame) return; // 寄せた構図を範囲内に引き戻さない
   const vw = innerWidth / view.s, vh = innerHeight / view.s;
   const cx = view.x + vw / 2, cy = view.y + vh / 2;
   const nx = Math.max(PAN.x0, Math.min(PAN.x1, cx)), ny = Math.max(PAN.y0, Math.min(PAN.y1, cy));
@@ -2462,9 +2532,9 @@ function headXY(p) {
   return { x, y: PY(pl.cx, pl.cy, pl.z) - (pl.stand ? 27 : 20) };
 }
 function renderOverlay() {
-  if (preview) return;
+  if (preview && !config.tags) return; // tags: 名札だけ出す(表札・ボタンなし)
   const html = [];
-  for (const room of FL[FLOOR].rooms) {
+  for (const room of preview ? [] : FL[FLOOR].rooms) {
     if (!room.sign) continue; // 表札はsignのある部屋だけ
     const here = inOffice(ME) && myRoomId() === logicalRoom(room.id);
     const [sx, sy, sz] = room.sign, x = PX(sx, sy), y = room.mount === 'floor' ? PY(sx, sy, PLATE_Z_FLOOR) : PY(sx, sy, sz);
@@ -2476,7 +2546,7 @@ function renderOverlay() {
     html.push(`<div class="plate${here ? ' here' : ''}${meet ? '' : ' nomeet'}" data-plate="${esc(room.id)}" style="--x:${NX(x)};--y:${y}">${inner}</div>`);
   }
   // 会議室: 入る(どこを押しても次の空き椅子へ)
-  for (const mt of MEETS) {
+  for (const mt of preview ? [] : MEETS) {
     if (mt.floor !== FLOOR || (isHere(ME) && ME.room === mt.id)) continue;
     const [mx0, my0, mx1, my1] = mt.room.rects[0], c = [[mx0, my0], [mx1, my0], [mx1, my1], [mx0, my1]].map(([X, Y]) => [NX(PX(X, Y)), PY(X, Y, 0)]);
     const xs = c.map(p => p[0]), ys = c.map(p => p[1]), x0 = Math.min(...xs), y0 = Math.min(...ys) - 30, w = Math.max(...xs) - x0, h = Math.max(...ys) - y0;
@@ -2499,19 +2569,26 @@ function renderOverlay() {
     const call = pendingCall?.fromUserId === p.id ? '<b class="callin" aria-hidden="true">!</b>' : '', cls = call ? ' calling' : '';
     if (!compact || p.me) html.push(`<div class="tag${p.me ? ' me' : ''}${cls}${off ? ' off away' : ''}${focus ? ' focus' : ''}" data-person="${esc(p.id)}" style="--x:${NX(x)};--y:${top}">${call}${off ? '' : sq}${p.me ? _t('engine.you') : esc(tagName(p))}${p.memo && !compact ? MEMO_SVG : ''}</div>`); // ×2未満は自分の名札も印なし(机の飾りを隠さない幅に)
     else html.push(`<div class="tag small-tag${cls}${off ? ' off away' : ''}" data-person="${esc(p.id)}" style="--x:${NX(x)};--y:${top}">${call}${off ? '' : sq}${esc(tagName(p))}</div>`); // ×2未満(「全体」など)は色の四角＋名字だけ
-    html.push(`<button class="who" style="--x:${NX(x)};--y:${yf + 3};--sw:14;--sh:${pl.stand ? 28 : 22}" data-person="${esc(p.id)}" data-label="${esc(personLine(p))}" aria-label="${esc(p.name)}(${esc(personLine(p))})"></button>`);
+    if (!preview) html.push(`<button class="who" style="--x:${NX(x)};--y:${yf + 3};--sw:14;--sh:${pl.stand ? 28 : 22}" data-person="${esc(p.id)}" data-label="${esc(personLine(p))}" aria-label="${esc(p.name)}(${esc(personLine(p))})"></button>`);
   }
-  for (const mt of MEETS) { const n = meetLayout(mt.id).over.length; if (n && mt.floor === FLOOR) html.push(`<div class="plus" style="--x:${NX(PX(mt.plusAt[0], mt.plusAt[1]))};--y:${PY(mt.plusAt[0], mt.plusAt[1], mt.plusAt[2])}">+${n}</div>`); }
+  if (!preview) for (const mt of MEETS) { const n = meetLayout(mt.id).over.length; if (n && mt.floor === FLOOR) html.push(`<div class="plus" style="--x:${NX(PX(mt.plusAt[0], mt.plusAt[1]))};--y:${PY(mt.plusAt[0], mt.plusAt[1], mt.plusAt[2])}">+${n}</div>`); }
   const free = pickSeat && !ME.present ? new Set(freeSeats().map(st => st.id)) : null; // 入室する席を選んでもらうあいだは、選べる席に点滅する黄色い輪(.seat.free)
-  for (const st of SEATS) {
+  for (const st of preview ? [] : SEATS) {
     if (st.floor !== FLOOR || occupantOf(st) || reserved(st)) continue;
     const x = PX(st.cx, st.cy), y = PY(st.cx, st.cy, st.z0 || 0); // z0: 台の高さ
     // 机の席は誰でも座れる。空いているときはprops.labelの札も出す(.tagはpointer-events:noneなので下のボタンを邪魔しない)
-    if (st.sign && !tagHide) html.push(`<div class="tag off" style="--x:${NX(x)};--y:${y - (st.type === 'stand' ? 10 : 32)}">${st.sign}</div>`); // 立ち位置の札は床の印のすぐ上
+    if (st.sign && !tagHide) html.push(`<div class="tag off" style="--x:${NX(x)};--y:${y - (st.type === 'stand' ? 10 : 32)}">${esc(st.sign)}</div>`); // 立ち位置の札は床の印のすぐ上
     const label = _t(ME.present ? 'engine.seat.here' : 'engine.seat.enter');
     html.push(`<button class="seat${free && free.has(st.id) ? ' free' : ''}" style="--x:${NX(x)};--y:${y + 4};--sw:14;--sh:${st.type === 'stool' ? 30 : 24}" data-seat="${esc(st.id)}" data-label="${label}" aria-label="${esc(_t('engine.seat.sit', { room: roomById(st.room).name, seat: st.label }))}"></button>`);
   }
+  if (!preview && config.itemButtons) for (const it of FL[FLOOR].fm.items) { // プラグインの置き物の上の押せるボタン(箱の上の真ん中)
+    const label = Object.hasOwn(config.itemButtons, it.type) ? config.itemButtons[it.type] : null, c = CATALOG[it.type];
+    if (!label || !c?.dirs || (it.season && it.season !== SEASON)) continue;
+    const bs = c.boxes?.(it.dir, { ...c.props, ...it.props }) || [], cx = it.x + (bs.length ? (Math.min(...bs.map(o => o.b[0])) + Math.max(...bs.map(o => o.b[3]))) / 2 : 0), cy = it.y + (bs.length ? (Math.min(...bs.map(o => o.b[1])) + Math.max(...bs.map(o => o.b[4]))) / 2 : 0);
+    html.push(`<button class="hit" style="--x:${NX(PX(cx, cy))};--y:${PY(cx, cy, bs.length ? Math.max(...bs.map(o => o.b[5])) : 0) + 8};--sw:20;--sh:16" data-item="${esc(it.id)}" data-label="${esc(label)}" aria-label="${esc(label)}"></button>`);
+  }
   ov.innerHTML = html.join('');
+  if (preview) ov.querySelectorAll('.tag, .tag *').forEach(e => { e.style.pointerEvents = 'none'; }); // CSSの.tag[data-person]のauto(押せる名札)を打ち消す
   ov.querySelectorAll('[data-plate]').forEach(el => { PLATE_W[el.dataset.plate] = { w: el.offsetWidth / view.s, h: el.offsetHeight / view.s }; });
   if (compact) { // ×2未満: 重なる名札は間引く(.thin。人に重ねると出る)。先に置く順: 自分 → 話している・声かけ中の人 → 同じ島 → ほかの在席 → 離席中 → 空席の札。
     // 上へ2段までずらしてよいのは同じ島までの人だけ(みんなずらすと、島の上が名札の段で埋まる)
@@ -2817,7 +2894,7 @@ function renderLog(toEnd) {
   $('logTitle').textContent = _t('engine.log.title', { room: talk });
   $('logTitle2').textContent = rid ? _t('engine.log.title', { room: talk }) : _t('engine.log.notIn');
   $('logCount').textContent = sayN(); // 「3人」「あなただけ」
-  $('sayInput').placeholder = (innerWidth < 900 ? _t('engine.say.short') : _t('engine.say.placeholder')) + sayCount(); // 狭い画面で切れないように。部屋の名前も入れると長い名前で切れた
+  $('sayInput').placeholder = (innerWidth < 900 ? _t('engine.say.short') : _t('engine.say.placeholder')) + (innerWidth < 480 ? '' : sayCount()); // 狭い画面で切れないように。部屋の名前も入れると長い名前で切れた。スマホは人数も外す(「話しかける（」で切れた)
   // Meetは窓のヘッダー(スマホは入力欄の横)。URLがまだ無い部屋でも出す(押すと「まだ設定されていません」)
   const meetOk = HAS_SEATS.has(rid), mb = $('islandMeet');
   mb.hidden = !meetOk;
@@ -3009,7 +3086,7 @@ $('presenceBtn').addEventListener('click', e => { const p = openPop(`<h3>${_t('e
 function openStatusMenu(anchor) {
   const fixed = !ME.away && statusReason(ME);
   const opts = ['work', 'focus', 'break', 'meet'].map(k => `<button class="pbtn" role="radio" aria-checked="${!fixed && ME.manual === k}" data-st="${k}" ${fixed ? 'disabled' : ''}><i class="sq ${STATUS[k].cls}"></i>${STATUS[k].label}</button>`).join('');
-  const p = openPop(`<div class="stmenu"><h3>${_t('engine.status.title')}<button class="x" aria-label="${_t('engine.close')}">×</button></h3><div class="opts" role="radiogroup" aria-label="${_t('engine.status.title')}">${opts}</div>${fixed ? `<p class="override">${statusReason(ME)}</p>` : ''}<label for="memoIn">${_t('engine.memo.label')}</label><input id="memoIn" type="text" maxlength="40" placeholder="${_t('engine.memo.placeholder')}"><p class="note">${_t('engine.status.meetNote')}</p></div>`, anchor.getBoundingClientRect(), 'above', 'status');
+  const p = openPop(`<div class="stmenu"><h3>${_t('engine.status.title')}<button class="x" aria-label="${_t('engine.close')}">×</button></h3><div class="opts" role="radiogroup" aria-label="${_t('engine.status.title')}">${opts}</div>${fixed ? `<p class="override">${esc(statusReason(ME))}</p>` : ''}<label for="memoIn">${_t('engine.memo.label')}</label><input id="memoIn" type="text" maxlength="40" placeholder="${_t('engine.memo.placeholder')}"><p class="note">${_t('engine.status.meetNote')}</p></div>`, anchor.getBoundingClientRect(), 'above', 'status');
   if (!p) return;
   const memo = p.querySelector('#memoIn'); memo.value = ME.memo || '';
   memo.addEventListener('input', () => { ME.memo = memo.value; renderHUD(); sendMemoSoon(memo.value); });
@@ -3088,7 +3165,7 @@ function seatMe(target, o = {}) {
     ensureMeVisible();
     if (changed && !o.silent) {
       const where = _t('engine.move.to', { room: roomName(target.room, prev.room) });
-      const t = showToast(`<span class="t">${o.msg || where}</span>${o.meetRoom ? talkBtn(o.meetRoom) : ''}<button class="pbtn" data-undo>${_t('engine.undo')}</button>`, o.meetRoom ? 10000 : 5000);
+      const t = showToast(`<span class="t">${o.msg || esc(where)}</span>${o.meetRoom ? talkBtn(o.meetRoom) : ''}<button class="pbtn" data-undo>${_t('engine.undo')}</button>`, o.meetRoom ? 10000 : 5000);
       if (o.meetRoom) bindMeet(t, o.meetRoom);
       t.querySelector('[data-undo]').onclick = () => {
         t.hidden = true;
@@ -3125,6 +3202,8 @@ ov.addEventListener('click', e => {
   const t = e.target;
   const who = t.closest('.who, .tag[data-person]');
   if (who) { openPersonCard(PEOPLE.find(p => p.id === who.dataset.person), who); return; }
+  const item = t.closest('[data-item]');
+  if (item) { config.onItemClick?.({ ...FL[FLOOR].fm.items.find(i => i.id === item.dataset.item), floor: FLOOR }); return; }
   const seat = t.closest('.seat');
   if (seat) { const st = seatById(seat.dataset.seat); seatMe({ room: st.room, seat: st.id }); return; }
   const join = t.closest('[data-join]');
@@ -3708,7 +3787,7 @@ function renderMiniHead() {
   if (!mini) return;
   const { q } = mini;
   const fixed = !ME.away && statusReason(ME);
-  q('mst').innerHTML = ['work', 'focus', 'break', 'meet'].map(k => `<button data-st="${k}" role="radio" aria-checked="${!fixed && ME.manual === k}" aria-pressed="${!fixed && ME.manual === k}" ${fixed || ME.away || !isHere(ME) ? 'disabled' : ''} title="${fixed || ''}"><i class="sq ${STATUS[k].cls}"></i>${STATUS[k].label}</button>`).join('');
+  q('mst').innerHTML = ['work', 'focus', 'break', 'meet'].map(k => `<button data-st="${k}" role="radio" aria-checked="${!fixed && ME.manual === k}" aria-pressed="${!fixed && ME.manual === k}" ${fixed || ME.away || !isHere(ME) ? 'disabled' : ''} title="${esc(fixed || '')}"><i class="sq ${STATUS[k].cls}"></i>${STATUS[k].label}</button>`).join('');
   q('pres').textContent = _t('engine.presence', { n: PEOPLE.filter(inOffice).length });
   const awayEl = mini.root.querySelector('.mini-away');
   awayEl.hidden = ME.present && !ME.away; awayEl.textContent = _t(ME.present ? 'engine.status.away' : 'engine.mini.out');
@@ -3814,6 +3893,8 @@ function applyState(state, fromSend) {
   const t = Date.parse(state.serverTime) || 0;
   if ((!fromSend && pending > 0) || t < lastServer) return;
   lastServer = t;
+  const psig = JSON.stringify(state.plugins ?? {});
+  if (psig !== PSIG) { PSIG = psig; PSTATE = state.plugins ?? {}; if (booted) drawWorld(); }
   if (booted && t) srvOff = t - Date.now(); // 時計をサーバーに合わせる(開いたときのstateはページの読み込みのぶん古いので使わない)
   if (booted) { // ほかの部屋で話している人(直近8秒にチャットを書いた人)の頭上に、数秒だけ「…」(中身は出さない)。人の様子が変わらない回でも出す
     const nowMs = Date.now();
@@ -4027,8 +4108,14 @@ return {
     PARTS = parts || []; PARTS_VER++; setCustomParts(PARTS); imgURLs.clear();
     if (booted) { renderHUD(); renderLog(); drawWorld(); }
   },
+  setPluginState(id, value) {
+    if (destroyed) return;
+    PSTATE = { ...PSTATE, [id]: value }; PSIG = JSON.stringify(PSTATE);
+    if (booted) drawWorld();
+  },
   miniOpen: () => !!mini && mini.win !== window,
   worldCanvas: () => worldCanvas,
+  camera: () => ({ s: view.s, x: view.x, y: view.y, floor: FLOOR, user: userCam }),
   destroy() {
     if (destroyed) return;
     destroyed = true;

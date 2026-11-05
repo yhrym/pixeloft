@@ -5,12 +5,12 @@ description: Got a minute calls, waves and Web Push. Why Web Push needs HTTPS, w
 ---
 ## What is delivered
 
-- **Got a minute?** A call to a teammate. They can answer "On my way" or "Later".
-- **Waves**: a light hello that can be waved back.
+- **Got a minute?** A call to a teammate. They can choose **Go** or **Later** to reply.
+- **Waves**: a quick greeting. The recipient can wave back.
 
-Both show up in the office for people who have it open. People who allow notifications also get them as Web Push when the tab is in the background.
+Both appear in the office for people who have it open. To receive "Got a minute?" requests as Web Push notifications even with the tab closed, turn on **Notify me when called** in the office and allow notifications in your browser. This requires HTTPS or `localhost`.
 
-## Web Push needs HTTPS
+## Web Push and HTTPS
 
 Web Push and the service worker only work on HTTPS, or on `localhost`. If you open the app over plain HTTP on another host, the browser will not offer notifications. Put a reverse proxy in front of the app.
 
@@ -24,7 +24,7 @@ office.example.com {
 }
 ```
 
-Then set these in `.env` and run `docker compose up -d` again:
+First make sure nobody can reach the app's port directly: publish it only on `127.0.0.1` or restrict it with a firewall. See [Operations](../operations/) for details. Then set these in `.env` and run `docker compose up -d` again:
 
 ```
 APP_URL=https://office.example.com

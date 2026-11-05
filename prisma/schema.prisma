@@ -211,3 +211,13 @@ model VoPart {
 
   @@index([createdById])
 }
+
+/// プラグインが使う保存場所(プラグインのid＋キーごとに1行)。プラグインを外しても消さない。src/lib/plugins/store.ts
+model PluginData {
+  plugin    String
+  key       String
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@id([plugin, key])
+}

@@ -18,6 +18,8 @@ npm run dev
 
 If you change `DB_PORT`, change the port in `DATABASE_URL` in `.env` too.
 
+`npm run dev`, `build`, `test`, `lint`, `build:pages` and `build:thumbs` first run `scripts/plugins.mjs`, which reads `plugins/*/` and writes `src/plugins/generated/` (git-ignored). Run `node scripts/plugins.mjs` by hand if you use `next dev` or `tsc` directly.
+
 ## Tests and checks
 
 Run these before committing:

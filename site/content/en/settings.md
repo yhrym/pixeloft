@@ -3,7 +3,7 @@ title: Settings
 order: 4
 description: Admin settings for time zone, work end hour, weather location, seasonal decorations and call URLs.
 ---
-Admins open **Settings** from the menu (`/admin/settings`). Changes apply to the whole office. Environment variables only give the initial values; see [Getting started](../getting-started/).
+Admins open **Settings** from the menu (`/admin/settings`). Changes apply to the whole office. The initial time zone comes from the `TZ` environment variable; see [Getting started](../getting-started/).
 
 ## Time zone
 
@@ -27,4 +27,4 @@ The office can show decorations for events: New Year, Setsubun, Valentine's Day,
 
 ## Call URL per room
 
-Each room of the published map has an optional call URL. Use any `https://` or `http://` link: Meet, Zoom, Teams or anything else, up to 300 characters. People in that room get an **Open call** button. Rooms with no URL offer **Talk in chat** instead. Rooms that no longer exist in the published map are dropped when you save.
+Each room of the published map has an optional call URL. Use any `https://` or `http://` link: Meet, Zoom, Teams or anything else, up to 300 characters. People in that room get an **Open call** button. Rooms with no URL offer **Talk in chat** instead. When you save, call URLs for rooms that are no longer in the published map are removed.

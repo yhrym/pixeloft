@@ -82,6 +82,13 @@
   .vo-page #miniBtn { display: none; }
 }
 /* ---------- zoom ---------- */
+/* ---------- プラグイン: dock(HUDの中の小さい窓の置き場。スマホでは右のズームの列をよける)と、ダイアログ ---------- */
+.vo-page .dock { position: absolute; left: 8px; top: calc(var(--hud-top) + 10px); z-index: 18; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; max-width: calc(100vw - 72px); pointer-events: none; }
+.vo-page .dock > * { pointer-events: auto; max-width: 100%; }
+.vo-page dialog.win { margin: auto; padding: 10px 12px; width: 320px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; font-family: var(--vo-font); }
+.vo-page dialog.win::backdrop { background: rgba(20, 25, 43, 0.55); }
+.vo-page dialog.win h3 { margin: 0 0 8px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.vo-page dialog.win .x { margin-left: auto; background: none; border: 0; color: var(--o); cursor: pointer; font-size: 14px; padding: 0 2px; }
 .vo-page .zoom { position: absolute; right: 10px; bottom: 84px; z-index: 19; display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
 .vo-page .zoom .pbtn { width: 44px; height: 32px; padding: 0; font-family: "DotGothic16", sans-serif; font-weight: 400; font-size: 16px; }
 .vo-page .zoom .lv { font-size: 12px; text-align: center; color: var(--o); background: rgba(34, 31, 44, 0.75); padding: 2px 0; }
@@ -642,5 +649,9 @@
 
 /* プレビュー(config.preview): HUD・ポップアップを隠し、階のボタンだけ残す */
 .vo-preview .hud-top, .vo-preview .hud-bar, .vo-preview .hud-bottom, .vo-preview .sheet-btn, .vo-preview .hud-sheet, .vo-preview .pop, .vo-preview .toast, .vo-preview #ov, .vo-preview #fxov { display: none !important; }
-.vo-preview .zoom > :not(.floors) { display: none !important; }
+.vo-preview .zoom #zoomMe { display: none !important; }
+.vo-preview .zoom .pbtn { width: 32px; height: 24px; font-size: 13px; }
+.vo-preview .zoom .pbtn.fit { font-size: 11px; }
+.vo-preview .zoom .lv { font-size: 11px; }
+.vo-preview .zoom .lv, .vo-preview .zoom .fit { display: block !important; } /* 狭い幅・スマホ向けの畳みを打ち消す */
 .vo-preview .zoom { bottom: 10px !important; }

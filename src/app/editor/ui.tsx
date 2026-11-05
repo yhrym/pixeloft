@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { Thumbs } from "./draw";
+import { pluginThumbs, type Thumbs } from "./draw";
 
 const P: Record<string, string[]> = {
   select: ["M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"],
@@ -68,6 +68,7 @@ export function DirArrow({ angle, size = 28 }: { angle: number; size?: number })
 /** サムネイル(スプライト)。なければ・idがなければ中立のアイコン */
 export function Thumb({ id, sheet, base, size = 48 }: { id: string; sheet: Omit<Thumbs, "img"> | null; base: string; size?: number }) {
   const i = sheet?.idx.get(id);
+  if (i === undefined && Object.hasOwn(pluginThumbs, id)) return <span className="pxe-thumb" aria-hidden="true" style={{ width: size, height: size, backgroundImage: `url(${pluginThumbs[id]})`, backgroundSize: "100% 100%" }} />;
   if (!sheet || i === undefined) return <span className="pxe-thumb pxe-thumb-empty" style={{ width: size, height: size }}><Icon n="item" size={size * 0.42} /></span>;
   const k = size / sheet.size;
   return (

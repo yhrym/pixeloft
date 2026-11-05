@@ -5,24 +5,26 @@ import { mountOffice, type OfficeHandle, type OfficeOptions } from "@/engine/off
 
 /**
  * エンジン(canvasとHUD)を1つの要素に載せるだけ。window を使うので OfficeClient が next/dynamic の ssr:false で読む。
- * options はマウントしたときの値だけ使う(初期状態・天気・マップは開いた時点のもの。あとの状態は handle.update で入れる)
+ * make はマウントしたとき(ブラウザの中)に1回呼び、options だけ使う(初期状態・天気・マップは開いた時点のもの。あとの状態は handle.update で入れる)。dispose は外すとき
  */
 export default function OfficeStage({
-  options,
+  make,
   onHandle,
 }: {
-  options: OfficeOptions;
+  make: () => { options: OfficeOptions; dispose: () => void };
   onHandle: (handle: OfficeHandle | null) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const optionsRef = useRef(options);
+  const makeRef = useRef(make);
 
   useEffect(() => {
-    const handle = mountOffice(ref.current!, optionsRef.current);
+    const { options, dispose } = makeRef.current();
+    const handle = mountOffice(ref.current!, options);
     onHandle(handle);
     return () => {
       onHandle(null);
       handle.destroy();
+      dispose();
     };
   }, [onHandle]);
 

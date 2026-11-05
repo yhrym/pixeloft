@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { deliver, vapidSubject } from "./push.ts";
 
-const sub = (n: number) => ({ endpoint: `https://push.example/${n}`, p256dh: "p", auth: "a" });
+const sub = (n: number) => ({ endpoint: `https://fcm.googleapis.com/${n}`, p256dh: "p", auth: "a" });
 const payload = { title: "t", body: "b", url: "/", tag: "x" };
 
 test("deliver: 成功を数え、失敗は止めずに続ける", async () => {
@@ -15,6 +15,14 @@ test("deliver: 成功を数え、失敗は止めずに続ける", async () => {
   assert.equal(r.sent, 2);
   assert.deepEqual(r.expired, []);
   assert.equal(seen.length, 3);
+});
+
+test("deliver: 許可外のendpointには送らず、失効として返す", async () => {
+  const seen: string[] = [];
+  const r = await deliver([sub(1), { ...sub(2), endpoint: "https://10.0.0.5/x" }], payload, async (s) => { seen.push(s.endpoint); });
+  assert.equal(r.sent, 1);
+  assert.deepEqual(r.expired, ["https://10.0.0.5/x"]);
+  assert.equal(seen.length, 1);
 });
 
 test("VAPIDのsubject: httpsのAPP_URLならそれ、なければmailto", () => {

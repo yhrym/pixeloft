@@ -110,6 +110,8 @@ export type VoState = {
   isAdmin: boolean;
   /** いま出す季節の飾りのイベントのid(なしはnull)。設定のseasonModeと日付から決まる */
   season: string | null;
+  /** プラグインごとの状態(server.ts の state(ctx) の値)。プラグインが無ければ空 */
+  plugins?: Record<string, unknown>;
 };
 
 export type VoAction =

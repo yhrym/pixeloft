@@ -1,0 +1,9 @@
+{
+  "plugin.hello.menu": "ハローの窓",
+  "plugin.hello.count": "押した回数: {n}",
+  "plugin.hello.placed": "置いてある数: {n}",
+  "plugin.hello.press": "押す",
+  "plugin.hello.reset": "リセット",
+  "plugin.hello.adminOnly": "リセットは管理者だけです。",
+  "catalog.hello:counter": "ハローの置き物"
+}

@@ -13,6 +13,8 @@ import type { Prisma } from "@prisma/client";
 export async function POST(req: Request) {
   const denied = csrfGuard(req);
   if (denied) return denied;
+  // 設定済みなら、formDataの解析・検証・scryptの前に返す(未ログインで重い処理を回させない)
+  if ((await prisma.user.count()) > 0) return redirectTo("/login");
   const f = await req.formData();
   const loginId = String(f.get("loginId") ?? "");
   const name = String(f.get("name") ?? "").trim();

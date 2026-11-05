@@ -6,26 +6,28 @@ import type { Locale } from "@/i18n";
 import type { OfficeMap } from "@/engine/map.js";
 import { EditorClient } from "../app/editor/EditorClient";
 import type { EditorStore } from "../app/editor/store";
-import { emptyMap } from "@/lib/map/empty";
 import { looksLikeMap } from "@/lib/map/validate";
 import sampleJa from "../../maps/sample.ja.json";
 import sampleEn from "../../maps/sample.en.json";
 
 const KEY = "pixeloft.draft";
 
+const locale: Locale = navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en";
+const sample = (locale === "ja" ? sampleJa : sampleEn) as OfficeMap;
+
 const localStore: EditorStore = {
   async load() {
     try {
       const v: unknown = JSON.parse(localStorage.getItem(KEY) ?? "null");
       if (looksLikeMap(v)) return { map: v, source: "local" };
-    } catch { /* 読めなければ空のマップ(プライベートウィンドウなど) */ }
-    return { map: emptyMap(), source: "empty" };
+    } catch { /* 読めなければサンプル(プライベートウィンドウなど) */ }
+    // 初回は空でなくサンプルを見せる。ここでは保存しない(編集して初めて下書きになる)
+    return { map: structuredClone(sample), source: "sample" };
   },
   async saveDraft(map) {
     try { localStorage.setItem(KEY, JSON.stringify(map)); return true; } catch { return false; }
   },
 };
 
-const locale: Locale = navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en";
 document.documentElement.lang = locale;
-createRoot(document.getElementById("root")!).render(<EditorClient store={localStore} locale={locale} previewSrc="preview.html" thumbsBase="" autosave sample={(locale === "ja" ? sampleJa : sampleEn) as OfficeMap} />);
+createRoot(document.getElementById("root")!).render(<EditorClient store={localStore} locale={locale} backHref={`../${locale}/`} docsHref={`../${locale}/map-editor/`} previewSrc="preview.html" thumbsBase="" autosave sample={sample} />);

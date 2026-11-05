@@ -4,15 +4,21 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "scripts": {
+    "predev": "node scripts/plugins.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/plugins.mjs",
     "build": "next build",
     "start": "next start",
+    "prelint": "node scripts/plugins.mjs",
     "lint": "eslint",
+    "prebuild:thumbs": "node scripts/plugins.mjs",
     "build:thumbs": "node scripts/build-thumbs.mjs",
+    "prebuild:pages": "node scripts/plugins.mjs",
     "build:pages": "node scripts/build-pages.mjs",
     "build:site": "node scripts/build-site.mjs",
     "build:gh-pages": "npm run build:pages && node scripts/build-site.mjs --with-editor",
-    "test": "node --test \"src/**/*.test.ts\""
+    "pretest": "node scripts/plugins.mjs",
+    "test": "node --test \"src/**/*.test.ts\" \"plugins/**/*.test.ts\" \"examples/**/*.test.ts\""
   },
   "dependencies": {
     "@fontsource/dotgothic16": "5.3.1",

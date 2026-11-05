@@ -4,6 +4,9 @@
 // seats: 席。dx,dyは原点からの差、faceは座った人の向き(画面上のNE/NW/SE/SW)。ほかの項目(chair・sz・colなど)はエンジンがそのまま使う。
 // dirs: 絵と箱が対応している向き。ここに無い向きは使えない。
 
+// プラグインの置き物(scripts/plugins.mjsが作る。キーは<id>:<名前>)。DEFSのあとに混ぜて同じderiveを通す
+import PLUGIN_DEFS from "../plugins/generated/catalog.js";
+
 // 向き → その向きを見ている人の画面上の向き
 export const FACE = { "x+": "SE", "y+": "SW", "x-": "NW", "y-": "NE" };
 const ROT = ["x+", "y+", "x-", "y-"];
@@ -42,6 +45,18 @@ function derive(def) {
   if (def.seats) out.seats = (d, p) => { const [n, tr, rot] = plan(d); let ss = def.seats(n, p); if (tr) ss = ss.map(s => ({ ...s, dx: s.dy, dy: s.dx, face: MIRF[s.face] })); if (rot) { const [cx, cy] = centerOf((def.boxes ? def.boxes(n, p) : []).map(o => (tr ? trB(o) : o))); ss = ss.map(s => ({ ...s, dx: 2 * cx - s.dx, dy: 2 * cy - s.dy, face: OPP[s.face] })); } return ss; };
   return out;
 }
+
+// プラグインのboxes・seatsが投げても、席の一覧とエンジンを巻き込まない(空にして種類ごとに1回だけ出す)。公開時のチェックだけ、on=trueで投げさせてプラグイン名つきのエラーにする
+export const PLUGIN_STRICT = { on: false };
+const warned = new Set();
+export const guarded = (key, f) => f && ((...a) => {
+  try { return f(...a); } catch (e) {
+    if (PLUGIN_STRICT.on) throw e;
+    if (!warned.has(key)) { warned.add(key); console.error(`plugin ${key}: boxes/seats:`, e); }
+    return [];
+  }
+});
+const safeDef = (key, d) => ({ ...d, ...(d.boxes && { boxes: guarded(key, d.boxes) }), ...(d.seats && { seats: guarded(key, d.seats) }) });
 
 const DEFS = {
   // 島の机。x+は机がXに並び、y+はXとYを入れ替えた形(回転ではなく転置。番号はカメラ側から数える)。原点は島の真ん中。props.chairs: 席番号→椅子の色、props.fan: 卓上扇風機を置く席番号
@@ -90,6 +105,9 @@ const DEFS = {
   "coffee-table": { cat: "lounge", dirs: ["x+"], art: ["x+"], sym: true, props: { seats: [] }, boxes: () => one([0, 0, 0, 36, 16, 12]) },
   // エレベーター。扉が+Y側。entrance: 入室した人が現れる所(in)と、扉の前のマス(out)
   elevator: { cat: "facility", dirs: ["y+"], props: { entrance: false }, boxes: () => [{ b: [0, 0, 0, 64, 72, 30], block: false }], entrance: { in: [32, 64], out: [32, 76] } },
+  // 小さいエレベーター。幅・奥行き・扉の開口がelevatorより小さい(絵はoffice.jsのdrawElevatorShaftに同じ値を渡す)
+  "elevator-medium": { cat: "facility", dirs: ["y+"], props: { entrance: false }, boxes: () => [{ b: [0, 0, 0, 48, 56, 30], block: false }], entrance: { in: [24, 48], out: [24, 60] } },
+  "elevator-small": { cat: "facility", dirs: ["y+"], props: { entrance: false }, boxes: () => [{ b: [0, 0, 0, 40, 48, 30], block: false }], entrance: { in: [20, 40], out: [20, 52] } },
   // 階段(入口になれる)。扉(開口)が+Y側。中の人は見えない。entrance: elevatorと同じ
   stairs: { cat: "facility", dirs: ["y+"], props: { entrance: false }, boxes: () => [{ b: [0, 0, 0, 48, 56, 30], block: false }], entrance: { in: [24, 48], out: [24, 62] } },
   // 玄関の戸(枠と足もとのマット。入口になれる)。戸の口が+Y側
@@ -109,6 +127,16 @@ const DEFS = {
       { dx: 80, dy: 0, face: "NW", type: "stand" }, { dx: 8, dy: -10, face: "SW", type: "stand" },
     ],
   },
+  // 4人がけ。席は椅子4(左の列→右の列)のみ。props.chairs: 席番号→椅子の色
+  "meeting-table-small": { cat: "meeting",
+    dirs: ["x+"], art: ["x+"], sym: true,
+    props: { chairs: {} },
+    boxes: () => one([0, 0, 0, 44, 44, 20]),
+    seats: (dir, p) => [
+      ...[0, 1].map(i => seat(dir, -14, 11 + 22 * i, "meet", { chair: p.chairs[i + 1] })),
+      ...[0, 1].map(i => ({ dx: 58, dy: 11 + 22 * i, face: "NW", type: "meet", chair: p.chairs[i + 3] })),
+    ],
+  },
   "display-stand": { cat: "meeting", dirs: ["x+"], art: ["x+"], sym: true, props: {}, boxes: () => one([0, 0, 0, 36, 4, 40]) },
   whiteboard: { cat: "meeting", dirs: ["x+"], art: ["x+"], sym: true, props: {}, boxes: () => one([0, 0, 0, 50, 7, 34]) },
   // L字のカウンターとスツール5脚。原点はカウンターの外接矩形の角。後ろの2つは歩けない範囲だけ(絵は最初の箱が描く)
@@ -121,6 +149,12 @@ const DEFS = {
       { dx: 31, dy: 52, face: "NW", type: "stool" },
     ],
   },
+  // 背の高い本棚(正面が+X)
+  bookshelf: { cat: "storage", dirs: ["x+"], art: ["x+"], props: {}, boxes: () => one([0, 0, 0, 10, 32, 40]) },
+  // 飲み物の自販機(正面が+X)
+  "vending-machine": { cat: "lounge", dirs: ["x+"], art: ["x+"], props: {}, boxes: () => one([0, 0, 0, 16, 24, 44]) },
+  // 受付カウンター(来客側が+X)
+  "reception-counter": { cat: "facility", dirs: ["x+"], art: ["x+"], props: {}, boxes: () => one([0, 0, 0, 16, 64, 28]) },
   "open-shelf": { cat: "storage", dirs: ["x+"], props: {}, boxes: () => one([0, 0, 0, 6, 26, 36]) },
   "wall-monitor": { cat: "meeting", dirs: ["x+"], props: {}, boxes: () => [{ b: [0, 0, 22, 2, 28, 38], block: false }] },
   "microwave-rack": { cat: "storage", dirs: ALL, props: {}, boxes: dir => one(foot(dir, 18, 12, 26)) },
@@ -233,7 +267,7 @@ const DEFS = {
   poinsettia: { cat: "season", dirs: ["x+"], art: ["x+"], sym: true, events: ["xmas"], props: {}, boxes: () => [{ b: [-4, -4, 0, 4, 4, 16], block: false }] },
 };
 // artがある定義は、dirsぶんの箱と席を派生させる
-export const CATALOG = Object.fromEntries(Object.entries(DEFS).map(([k, d]) => [k, d.art ? derive(d) : d]));
+export const CATALOG = Object.fromEntries(Object.entries({ ...DEFS, ...Object.fromEntries(Object.entries(PLUGIN_DEFS).map(([k, d]) => [k, safeDef(k, d)])) }).map(([k, d]) => [k, d.art ? derive(d) : d]));
 
 // エディタが選ばせる種類の一覧。名前(export名)は変えない
 // 壁: cut=腰の高さで切った白い壁 / glass=すりガラスの帯 / slat=白い板に横長のスリット / panel=パネル＋上は透明なガラスの帯 / glasslow=床から天井までの窓(輪切り) / none=歩けない線だけ(絵なし) /

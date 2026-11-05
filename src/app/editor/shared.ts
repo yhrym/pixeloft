@@ -8,6 +8,8 @@ export const TYPES = Object.keys(CATALOG);
 export const G = 16;
 export const s16 = (v: number) => Math.round(v / G) * G;
 export const s8 = (v: number) => Math.round(v / 8) * 8;
+/** 表札の初期位置(サンプルと同じ左下寄り)。小さい部屋でも矩形の中に収める */
+export const defaultSign = ([x0, y0, x1, y1]: number[]): [number, number] => [Math.min(Math.max(s8(x0 + 8), x0), x1 - 1), Math.min(Math.max(s8(y1 - 16), y0), y1 - 1)];
 
 export const ROOM_COLOR: Record<string, string> = { work: "#5b86d6", meeting: "#e8955a", break: "#5fa84a", free: "#e9b92f", hall: "#8e96a8" };
 export const TOOLS = ["select", "room", "wall", "door", "item"] as const;
@@ -58,8 +60,8 @@ export const doorOn = (w: Seg, x: number, y: number, dw: number) => {
   return { axis: w.axis, at: w.at, a, b: Math.min(a + dw, w.b) };
 };
 
-/** 向きの矢印(画面上の向き)。上向きの矢印を何度回すか */
-export const DIR_ANGLE: Record<string, number> = { "x+": 135, "y+": 225, "x-": 315, "y-": 45 };
+/** 向きの矢印(左右反転した平面上の向き)。上向きの矢印を何度回すか */
+export const DIR_ANGLE: Record<string, number> = { "x+": 270, "y+": 180, "x-": 90, "y-": 0 };
 
 /** 選んだ部屋の矩形の角(リサイズの取っ手)。cx/cy: 0=小さい側 1=大きい側 */
 export function handleAt(room: { rects: number[][] }, x: number, y: number, z: number): { ri: number; cx: 0 | 1; cy: 0 | 1 } | null {

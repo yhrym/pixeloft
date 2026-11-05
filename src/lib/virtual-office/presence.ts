@@ -74,7 +74,7 @@ export function isAway(p: { away: boolean; lastSeenAt: Date }, now: Date): boole
   return p.away || now.getTime() - p.lastSeenAt.getTime() > AWAY_AFTER_MS;
 }
 
-type PresenceRow = {
+export type PresenceRow = {
   room: string;
   seatId: string | null;
   status: string;

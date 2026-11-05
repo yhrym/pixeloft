@@ -14,8 +14,9 @@ import "./editor.css";
 import Preview from "./Preview";
 import type { EditorStore } from "./store";
 import { emptyMap } from "@/lib/map/empty";
-import { drawEditor, type Thumbs } from "./draw";
-import { CAT_ORDER, catKey, catOf, DIR_ANGLE, doorOn, footprint, G, handleAt, newId, ROOM_COLOR, s16, s8, segDist, TOOL_KEY, TOOLS, tooBig, TYPES, type Sel, type Tool } from "./shared";
+import { drawEditor, pluginImg, pluginThumbs, type Thumbs } from "./draw";
+import { CAT_ORDER, catKey, catOf, DIR_ANGLE, defaultSign, doorOn, footprint, G, handleAt, newId, ROOM_COLOR, s16, s8, segDist, TOOL_KEY, TOOLS, tooBig, TYPES, type Sel, type Tool } from "./shared";
+import { snapOut } from "./snap";
 import { Chips, DirArrow, Field, Icon, Menu, Section, Stepper, Switch, Thumb, Tip } from "./ui";
 
 type H = { map: OfficeMap; past: string[]; future: string[]; key: string };
@@ -23,12 +24,45 @@ type Drag = null | { t: "pan" | "rect" | "wall" | "move" | "resize"; sx: number;
 type Dlg = null | "publish" | "versions" | "sample" | "help";
 
 const CHECK_KEY = "pixeloft.editor.checklist";
+const W_KEY = "pixeloft.editor.panelW", H_KEY = "pixeloft.editor.previewH";
 const ls = {
   get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* 保存できなくても動く */ } },
+  del: (k: string) => { try { localStorage.removeItem(k); } catch { /* 消せなくても動く */ } },
 };
 
-export function EditorClient({ store, locale, backHref, previewSrc = "/editor/preview", autosave = false, sample, thumbsBase = "/" }: { store: EditorStore; locale: Locale; backHref?: string; previewSrc?: string; autosave?: boolean; sample?: OfficeMap; thumbsBase?: string }) {
+/** 右パネルの幅・プレビューの高さを変えるつまみ。大きさの状態は親が持ち、ここは操作と保存だけ */
+function RzHandle({ a, el, label, now, min, clamp, onSize, onDrag }: { a: "w" | "h"; el: React.RefObject<HTMLElement | null>; label: string; now: number | null; min: number; clamp: (v: number) => number; onSize: (v: number | null) => void; onDrag: (on: boolean) => void }) {
+  const key = a === "w" ? W_KEY : H_KEY;
+  const d = useRef<{ p: number; s: number; v: number } | null>(null);
+  const [on, setOn] = useState(false);
+  const size = () => { const r = el.current!.getBoundingClientRect(); return a === "w" ? r.width : r.height; };
+  const end = () => {
+    if (!d.current) return;
+    ls.set(key, String(d.current.v)); d.current = null; setOn(false); onDrag(false);
+    document.body.style.cursor = ""; document.body.style.userSelect = "";
+  };
+  const reset = () => { onSize(null); ls.del(key); };
+  return <div role="separator" tabIndex={0} data-on={on} title={label} aria-label={label} aria-orientation={a === "w" ? "vertical" : "horizontal"} aria-valuemin={min} aria-valuenow={now ?? undefined}
+    className={`pxe-rz pxe-rz-${a} ${a === "w" ? "max-[899px]:hidden" : ""}`}
+    onPointerDown={(e) => {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      const s = size(); d.current = { p: a === "w" ? e.clientX : e.clientY, s, v: s };
+      setOn(true); onDrag(true); document.body.style.cursor = a === "w" ? "col-resize" : "row-resize"; document.body.style.userSelect = "none";
+    }}
+    onPointerMove={(e) => { const c = d.current; if (!c) return; c.v = clamp(a === "w" ? c.s + c.p - e.clientX : c.s + e.clientY - c.p); onSize(c.v); }}
+    onPointerUp={end} onPointerCancel={end} onDoubleClick={reset}
+    onKeyDown={(e) => {
+      // 画面全体のキー処理(図面のパン・置き物の移動)にも拾われないよう止める
+      const step = e.key === (a === "w" ? "ArrowLeft" : "ArrowDown") ? 16 : e.key === (a === "w" ? "ArrowRight" : "ArrowUp") ? -16 : 0;
+      if (e.key === "Enter") reset();
+      else if (step) { const v = clamp(size() + step); onSize(v); ls.set(key, String(v)); }
+      else return;
+      e.preventDefault(); e.stopPropagation();
+    }} />;
+}
+
+export function EditorClient({ store, locale, backHref, docsHref, previewSrc = "/editor/preview", autosave = false, sample, thumbsBase = "/" }: { store: EditorStore; locale: Locale; backHref?: string; docsHref?: string; previewSrc?: string; autosave?: boolean; sample?: OfficeMap; thumbsBase?: string }) {
   const T = useCallback((k: string, v?: Record<string, string | number>) => tr(locale, k, v), [locale]);
   /** 名前の辞書にあればそれ、なければ記号のまま */
   const lab = useCallback((prefix: string, k: string) => { const s = tr(locale, prefix + k); return s === prefix + k ? k : s; }, [locale]);
@@ -59,6 +93,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
   const [pop, setPop] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [msg, setMsg] = useState("");
+  const [longMsg, setLongMsg] = useState(false); // 案内文だけ長く出す
   const [dlg, setDlg] = useState<Dlg>(null);
   const [serverIssues, setServerIssues] = useState<Issue[] | null>(null);
   const [versions, setVersions] = useState<Version[]>([]);
@@ -68,11 +103,17 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
   const [secProps, setSecProps] = useState(true);
   const [secChecks, setSecChecks] = useState(true);
   const [big, setBig] = useState(false);
+  const [panelW, setPanelW] = useState<number | null>(null);
+  const [previewH, setPreviewH] = useState<number | null>(null);
+  const [resizing, setResizing] = useState<"w" | "h" | null>(null);
+  const asideRef = useRef<HTMLElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [renaming, setRenaming] = useState<number | null>(null);
   const [dismissed, setDismissed] = useState(true);
   const [fresh, setFresh] = useState(false);
   const [done4, setDone4] = useState(false);
   const [thumbs, setThumbs] = useState<Thumbs | null>(null);
+  const [plugReady, setPlugReady] = useState(0);
   const fitRef = useRef<() => void>(() => {});
 
   const wrap = useRef<HTMLDivElement>(null);
@@ -103,7 +144,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
     setH((s) => (s.future.length === 0 ? s : { map: JSON.parse(s.future[s.future.length - 1]), future: s.future.slice(0, -1), past: [...s.past, JSON.stringify(s.map)], key: "" }));
     setDirty(true);
   }, []);
-  const load = useCallback((m: OfficeMap) => { setTimeout(() => fitRef.current(), 30); edit((x) => { x.version = m.version; x.name = m.name; x.backdrop = m.backdrop; x.floors = m.floors; }); setFi(0); setSel(null); setPop(null); }, [edit]);
+  const load = useCallback((m: OfficeMap) => { setTimeout(() => fitRef.current(), 30); if (m.floors.some((f) => f.rooms.length)) setTool("select"); edit((x) => { x.version = m.version; x.name = m.name; x.backdrop = m.backdrop; x.floors = m.floors; }); setFi(0); setSel(null); setPop(null); }, [edit]);
   const fl = (m: OfficeMap) => m.floors[fi];
 
   const issues = useMemo(() => validateMap(map), [map]);
@@ -125,10 +166,18 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
     })();
     return () => { dead = true; };
   }, [thumbsBase]);
+  // プラグインが同梱したサムネイルは、読み終わったら図面を描き直す
+  useEffect(() => {
+    let dead = false;
+    void Promise.all(Object.keys(pluginThumbs).map((id) => pluginImg(id)!.decode().catch(() => {}))).then(() => { if (!dead) setPlugReady(1); });
+    return () => { dead = true; };
+  }, []);
 
   // ---- 描画 ----
   const snap: [number, number] | null = cursor && (tool === "room" || tool === "wall") ? [s16(cursor[0]), s16(cursor[1])] : cursor && tool === "item" && palette ? [s8(cursor[0]), s8(cursor[1])] : null;
   const hitItem = (x: number, y: number) => [...floor.items].reverse().find((it) => { const [a, b, c, d] = footprint(it); return x >= a && x <= c && y >= b && y <= d; });
+  // マス目単位の当たり判定。細い物(ホワイトボードなど)も乗っているマスのどこでも掴める
+  const hitItemCell = (x: number, y: number) => [...floor.items].reverse().find((it) => { const [a, b, c, d] = snapOut(footprint(it), G); return x >= a && x < c && y >= b && y < d; });
   const hitWall = (x: number, y: number) => floor.walls.findIndex((w) => segDist(x, y, w) <= Math.max(4, 6 / view.z));
   const hitDoor = (x: number, y: number) => floor.doors.find((d) => segDist(x, y, d) <= Math.max(4, 6 / view.z));
   const hitRoom = (x: number, y: number) => [...floor.rooms].reverse().find((r) => r.rects.some(([a, b, c, d]) => x >= a && x < c && y >= b && y < d));
@@ -136,9 +185,12 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
     const it = hitItem(x, y); if (it) return { k: "item", id: it.id };
     const d = hitDoor(x, y); if (d) return { k: "door", id: d.id };
     const w = hitWall(x, y); if (w >= 0) return { k: "wall", i: w };
+    const ic = hitItemCell(x, y); if (ic) return { k: "item", id: ic.id };
     const r = hitRoom(x, y); return r ? { k: "room", id: r.id } : null;
   };
-  const hover: Sel = !cursor ? null : tool === "select" ? hitAny(...cursor) : tool === "item" ? ((i) => (i ? { k: "item" as const, id: i.id } : null))(hitItem(...cursor)) : tool === "room" ? ((r) => (r ? { k: "room" as const, id: r.id } : null))(hitRoom(...cursor)) : tool === "wall" ? ((i) => (i >= 0 ? { k: "wall" as const, i } : null))(hitWall(...cursor)) : ((d) => (d ? { k: "door" as const, id: d.id } : null))(hitDoor(...cursor));
+  // パレット選択中は空きマスに置けるよう、マス目の判定は使わない
+  const hitItemTool = (x: number, y: number) => hitItem(x, y) ?? (palette ? undefined : hitItemCell(x, y));
+  const hover: Sel = !cursor ? null : tool === "select" ? hitAny(...cursor) : tool === "item" ? ((i) => (i ? { k: "item" as const, id: i.id } : null))(hitItemTool(...cursor)) : tool === "room" ? ((r) => (r ? { k: "room" as const, id: r.id } : null))(hitRoom(...cursor)) : tool === "wall" ? ((i) => (i >= 0 ? { k: "wall" as const, i } : null))(hitWall(...cursor)) : ((d) => (d ? { k: "door" as const, id: d.id } : null))(hitDoor(...cursor));
   const doorGhost = (() => {
     if (tool !== "door" || !cursor || hitDoor(...cursor)) return null;
     const wi = hitWall(...cursor);
@@ -157,7 +209,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
     drawEditor(ctx, { w: size.w, h: size.h, dpr, view, floor, sel, hover, bad, warn, flash, seats, thumbs, lab: (ty) => lab("catalog.", ty), ghost, snap, itemGhost, doorGhost });
     // hover・snap・itemGhost・doorGhostはcursorから決まる
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, size, dpr, floor, sel, issues, seats, ghost, lab, thumbs, flash, cursor, tool, palette, dragType, ghostDir, doorW]);
+  }, [view, size, dpr, floor, sel, issues, seats, ghost, lab, thumbs, plugReady, flash, cursor, tool, palette, dragType, ghostDir, doorW]);
 
   useEffect(() => {
     const el = wrap.current!;
@@ -168,8 +220,8 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
       const r = el.getBoundingClientRect();
       setView((v) => {
         const z = Math.min(4, Math.max(0.15, v.z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
-        const wx = (e.clientX - r.left) / v.z + v.x, wy = (e.clientY - r.top) / v.z + v.y;
-        return { z, x: wx - (e.clientX - r.left) / z, y: wy - (e.clientY - r.top) / z };
+        const wx = (r.right - e.clientX) / v.z + v.x, wy = (e.clientY - r.top) / v.z + v.y;
+        return { z, x: wx - (r.right - e.clientX) / z, y: wy - (e.clientY - r.top) / z };
       });
     };
     el.addEventListener("wheel", wheel, { passive: false });
@@ -182,7 +234,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
     return () => window.removeEventListener("beforeunload", warnLeave);
   }, [dirty]);
 
-  useEffect(() => { if (!msg) return; const timer = setTimeout(() => setMsg(""), 4000); return () => clearTimeout(timer); }, [msg]);
+  useEffect(() => { if (!msg) return; const timer = setTimeout(() => { setLongMsg(false); setMsg(""); }, longMsg ? 8000 : 4000); return () => clearTimeout(timer); }, [msg, longMsg]);
   useEffect(() => { if (pop) setTimeout(() => { popInput.current?.focus(); popInput.current?.select(); }, 0); }, [pop]);
   useEffect(() => { if (hl.size) paletteBox.current?.querySelector("[data-hl]")?.scrollIntoView({ block: "center" }); }, [hl]);
   useEffect(() => { if (!hl.size) return; const timer = setTimeout(() => setHl(new Set()), 4000); return () => clearTimeout(timer); }, [hl]);
@@ -191,7 +243,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
   // ---- 操作 ----
   const world = (e: { clientX: number; clientY: number }): [number, number] => {
     const r = canvas.current!.getBoundingClientRect();
-    return [(e.clientX - r.left) / view.z + view.x, (e.clientY - r.top) / view.z + view.y];
+    return [(r.right - e.clientX) / view.z + view.x, (e.clientY - r.top) / view.z + view.y];
   };
   const placeItem = (type: string, x: number, y: number) => {
     const c = catOf(type);
@@ -231,7 +283,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
       edit((m) => { fl(m).doors.push({ id, ...doorOn(floor.walls[wi], x, y, doorW), kind: doorKind }); });
       setSel({ k: "door", id });
     } else {
-      const it = hitItem(x, y);
+      const it = hitItemTool(x, y);
       if (it) { setSel({ k: "item", id: it.id }); drag.current = { ...base, t: "move", id: it.id, ox: it.x - x, oy: it.y - y }; dragSeq.current++; return; }
       if (!palette || !catOf(palette)) { setSel(null); return; }
       placeItem(palette, s8(x), s8(y));
@@ -243,7 +295,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
     const d = drag.current;
     if (!d) return;
     const far = Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > 4;
-    if (d.t === "pan") setView((v) => ({ ...v, x: d.ox! - (e.clientX - d.sx) / v.z, y: d.oy! - (e.clientY - d.sy) / v.z }));
+    if (d.t === "pan") setView((v) => ({ ...v, x: d.ox! + (e.clientX - d.sx) / v.z, y: d.oy! - (e.clientY - d.sy) / v.z }));
     else if (d.t === "rect") { if (far) setGhost({ k: "rect", r: [Math.min(Math.floor(d.x / G), Math.floor(x / G)) * G, Math.min(Math.floor(d.y / G), Math.floor(y / G)) * G, (Math.max(Math.floor(d.x / G), Math.floor(x / G)) + 1) * G, (Math.max(Math.floor(d.y / G), Math.floor(y / G)) + 1) * G] }); }
     else if (d.t === "wall") { if (far) setGhost({ k: "wall", r: wallSeg(d.x, d.y, x, y) }); }
     else if (d.t === "move") { if (far) edit((m) => { const it = fl(m).items.find((i) => i.id === d.id); if (it) { it.x = s8(x + d.ox!); it.y = s8(y + d.oy!); } }, `drag${dragSeq.current}`); }
@@ -272,7 +324,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
         else {
           const id = newId(map);
           const n = map.floors.reduce((a, f) => a + f.rooms.length, 0) + 1;
-          edit((m) => { fl(m).rooms.push({ id, name: `${T("editor.room")} ${n}`, kind: "work", rects: [r] }); });
+          edit((m) => { fl(m).rooms.push({ id, name: `${T("editor.room")} ${n}`, kind: "work", rects: [r], sign: defaultSign(r) }); });
           setSel({ k: "room", id });
           setPop(id);
         }
@@ -351,6 +403,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
       const f = r.map.floors ?? [];
       const steps = [f.some((x) => x.rooms.length), f.some((x) => x.items.some((i) => i.props?.entrance === true)), f.some((x) => x.items.some((i) => catOf(i.type)?.seats))];
       setFresh(steps.filter(Boolean).length < 3);
+      if (steps[0]) setTool("select"); // 部屋のあるマップは選択から始める(空なら部屋を描くところから)
       setDismissed(ls.get(CHECK_KEY) === "1");
     }).catch(() => setMsg(T("editor.loadFailed")));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 最初の1回だけ読む
@@ -388,6 +441,8 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
     a.click();
     URL.revokeObjectURL(a.href);
     setDone4(true);
+    // ブラウザ版だけ、書き出したJSONの使い道を案内する
+    if (!store.publish) { setLongMsg(true); setMsg(T("editor.exportedHint")); }
   };
   const importJson = async (file: File | undefined) => {
     if (!file) return;
@@ -409,6 +464,15 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
     if (await store.saveDraft(sample).catch(() => false)) setDirty(false);
   };
 
+  // ---- 右パネルの大きさ変更 ----
+  useEffect(() => { // 保存値はマウント後に読む(SSRとの不一致を避ける)
+    const n = (k: string) => { const t = ls.get(k), v = Number(t); return t !== null && t !== "" && Number.isFinite(v) ? Math.round(v) : null; };
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 保存値の読み込みはマウント後の1回だけ
+    setPanelW(n(W_KEY)); setPreviewH(n(H_KEY));
+  }, []);
+  const clampW = (v: number) => Math.round(Math.max(368, Math.min(v, window.innerWidth - 600)));
+  const clampH = (v: number) => Math.round(Math.max(200, Math.min(v, Math.max(200, (asideRef.current?.clientHeight ?? 0) - 120))));
+
   // ---- キーボード ----
   const onKey = useRef<(e: KeyboardEvent) => void>(() => {});
   useEffect(() => {
@@ -425,7 +489,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
       if (mod) return;
       const k = e.key.toLowerCase();
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); remove(); }
-      else if (k === "r") rotate(e.shiftKey ? -1 : 1);
+      else if (k === "r") rotate(e.shiftKey ? 1 : -1); // 反転した平面では順方向(x+→y+)が反時計回りに見えるので、Rは-1で時計回りにする
       else if (e.key === "?") setDlg("help");
       else if (e.key === " " && el.tagName !== "BUTTON") { e.preventDefault(); space.current = true; }
       else if (e.key === "+" || e.key === "=") zoomBy(1.25);
@@ -434,7 +498,8 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
       else if (/^[2-5]$/.test(e.key)) setTool(TOOLS[Number(e.key) - 1]);
       else if (e.key.startsWith("Arrow")) {
         e.preventDefault();
-        const dx = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0, dy = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+        // x+は画面の左なので左右キーは符号を反転
+        const dx = e.key === "ArrowLeft" ? 1 : e.key === "ArrowRight" ? -1 : 0, dy = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
         if (sel?.k === "item") edit((m) => { const it = m.floors[fi].items.find((i) => i.id === sel.id); if (it) { it.x += dx * 8; it.y += dy * 8; } });
         else setView((v) => ({ ...v, x: v.x + (dx * 64) / v.z, y: v.y + (dy * 64) / v.z }));
       }
@@ -476,6 +541,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
     const f = map.floors[fx >= 0 ? fx : fi];
     if (i.key === "map.err.noEntrance") return { label: T("editor.fix.entrance"), run: () => { if (fx >= 0) setFi(fx); showEntrances(); } };
     if (i.key === "map.warn.roomNoDoor" && i.id) return { label: T("editor.fix.door"), run: () => { select(fx, { k: "room", id: i.id! }); setTool("door"); } };
+    if (i.key === "map.warn.signOutside" && i.id) return { label: T("editor.fix.sign"), run: () => { select(fx, { k: "room", id: i.id! }); setTool("select"); } };
     if (i.key === "map.err.itemOverlap" && i.id && i.vars?.other) { const o = String(i.vars.other); return { label: T("editor.fix.other"), run: () => { select(fx, { k: "item", id: o }); setTool("select"); setFlash(new Set([i.id!, o])); } }; }
     if (i.key === "map.err.roomOverlap" && i.id) { const o = f.rooms.find((r) => r.name === i.vars?.other && r.id !== i.id); if (o) return { label: T("editor.fix.other"), run: () => { select(fx, { k: "room", id: o.id }); setTool("select"); setFlash(new Set([i.id!, o.id])); } }; }
     return null;
@@ -530,7 +596,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
   const popPos = (() => {
     const rc = popRoom?.rects[0];
     if (!rc) return { left: 0, top: 0 };
-    return { left: Math.min(Math.max(8, (rc[0] - view.x) * view.z), Math.max(8, size.w - 300)), top: Math.min(Math.max(8, (rc[3] - view.y) * view.z + 10), Math.max(8, size.h - 250)) };
+    return { left: Math.min(Math.max(8, size.w - (rc[2] - view.x) * view.z), Math.max(8, size.w - 300)), top: Math.min(Math.max(8, (rc[3] - view.y) * view.z + 10), Math.max(8, size.h - 250)) };
   })();
 
   const issueList = (list: Issue[], withFix: boolean) => list.map((i, n) => {
@@ -560,7 +626,7 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
         <span className="pxe-wordmark mr-1 select-none" aria-hidden="true">Pixeloft</span>
         <span className="mx-1 hidden h-5 w-px bg-[var(--line)] sm:block" />
         <input className="pxe-namein" aria-label={T("editor.mapName")} placeholder={T("editor.unnamed")} maxLength={40} value={map.name} onChange={(e) => { const v = e.currentTarget.value; edit((m) => { m.name = v; }, "map-name"); }} />
-        <button className={`pxe-save ${saveState}`} disabled={busy || !dirty} onClick={() => void save()} title="Ctrl/Cmd+S" data-state={saveState}>{T(`editor.saveState.${saveState}`)}</button>
+        <button className={`pxe-save ${saveState}`} disabled={busy || !dirty} onClick={() => void save()} title={saveState === "saved" && !canPublish ? T("editor.saveState.savedLocalHint") : "Ctrl/Cmd+S"} data-state={saveState}>{T(saveState === "saved" && !canPublish ? "editor.saveState.savedLocal" : `editor.saveState.${saveState}`)}</button>
         <span className="mx-1 hidden h-5 w-px bg-[var(--line)] sm:block" />
         <Tip text={T("editor.undo")} keys="Ctrl+Z" side="bottom"><button className="pxe-iconbtn" disabled={h.past.length === 0} onClick={undo} aria-label={T("editor.undo")}><Icon n="undo" /></button></Tip>
         <Tip text={T("editor.redo")} keys="Shift+Ctrl+Z" side="bottom"><button className="pxe-iconbtn" disabled={h.future.length === 0} onClick={redo} aria-label={T("editor.redo")}><Icon n="redo" /></button></Tip>
@@ -571,12 +637,14 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
             {problems.length || warns.length ? <>{T("editor.errors", { n: problems.length })}<span className="opacity-50">/</span>{T("editor.warnings", { n: warns.length })}</> : T("editor.noProblems")}
           </button>
           {canPublish && <button className="pxe-btn pxe-btn-primary" disabled={busy} onClick={() => { setServerIssues(null); setDlg("publish"); }}><Icon n="send" size={15} />{T("editor.publish")}</button>}
+          {!canPublish && <button className="pxe-btn pxe-btn-primary" onClick={exportJson}><Icon n="download" size={15} />{T("editor.export")}</button>}
           <Menu trigger={({ toggle, open }) => <button className="pxe-iconbtn" aria-label={T("editor.menu")} aria-haspopup="menu" aria-expanded={open} onClick={toggle}><Icon n="more" /></button>}>
             {(close) => <>
               {store.versions && <button role="menuitem" onClick={() => { close(); void openVersions(); }}><Icon n="history" size={16} />{T("editor.versions")}</button>}
               <button role="menuitem" onClick={() => { close(); exportJson(); }}><Icon n="download" size={16} />{T("editor.export")}</button>
               <button role="menuitem" onClick={() => { close(); fileIn.current?.click(); }}><Icon n="upload" size={16} />{T("editor.import")}</button>
               {sample && <button role="menuitem" onClick={() => { close(); if (JSON.stringify(map) === JSON.stringify(emptyMap())) void openSample(); else setDlg("sample"); }}><Icon n="folder" size={16} />{T("editor.openSample")}</button>}
+              {docsHref && <a role="menuitem" href={docsHref}><Icon n="help" size={16} />{T("editor.docs")}</a>}
               <hr />
               <button role="menuitem" onClick={() => { close(); setDlg("help"); }}><Icon n="help" size={16} />{T("editor.shortcuts")}<span className="pxe-kbd ml-auto">?</span></button>
             </>}
@@ -743,10 +811,12 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
             <Tip text={T("editor.panel.show")} side="bottom"><button className="pxe-iconbtn" aria-label={T("editor.panel.show")} onClick={() => setRightOpen(true)}><Icon n="panel" /></button></Tip>
           </aside>
         ) : (
-          <aside className="pxe-panel flex w-[23rem] shrink-0 flex-col border-l border-[var(--line)] max-[899px]:w-full max-[899px]:border-l-0 max-[899px]:border-t">
+          <aside ref={asideRef} style={panelW !== null ? { "--pw": `${panelW}px` } as React.CSSProperties : undefined} className={`pxe-panel relative flex w-[var(--pw,23rem)] shrink-0 flex-col border-l border-[var(--line)] min-[900px]:max-w-[calc(100vw-600px)] min-[900px]:min-w-[23rem] max-[899px]:w-full max-[899px]:border-l-0 max-[899px]:border-t ${resizing ? "pxe-resizing" : ""}`}>
+            <RzHandle a="w" el={asideRef} label={T("editor.resize.w")} now={panelW ?? 368} min={368} clamp={clampW} onSize={setPanelW} onDrag={(on) => setResizing(on ? "w" : null)} />
             {big && <div className="fixed inset-0 z-[74] bg-[rgba(20,26,44,.55)]" onClick={() => setBig(false)} />}
-            <div className={`pxe-preview relative shrink-0 ${big ? "big" : "h-60"}`} data-testid="preview">
+            <div ref={previewRef} style={!big && previewH !== null ? { height: previewH } : undefined} className={`pxe-preview relative shrink-0 ${big ? "big" : previewH === null ? "h-[clamp(280px,45vh,520px)]" : "max-h-[calc(100vh-200px)]"}`} data-testid="preview">
               <Preview src={previewSrc} map={map} blocked={problems.length ? T("editor.previewFix") : null} failed={T("editor.previewFailed")} />
+              {!big && <RzHandle a="h" el={previewRef} label={T("editor.resize.h")} now={previewH} min={200} clamp={clampH} onSize={setPreviewH} onDrag={(on) => setResizing(on ? "h" : null)} />}
               <div className="pxe-previewbar flex gap-1.5">
                 <button className="pxe-btn pxe-btn-sm" onClick={() => setBig((v) => !v)} aria-pressed={big}><Icon n={big ? "shrink" : "expand"} size={14} />{T(big ? "editor.preview.close" : "editor.preview.expand")}</button>
                 {!big && <button className="pxe-iconbtn bg-white/90" style={{ width: 28, height: 28 }} aria-label={T("editor.panel.hide")} title={T("editor.panel.hide")} onClick={() => setRightOpen(false)}><Icon n="panel" size={15} /></button>}
@@ -773,8 +843,8 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
                   </div>
                   <div className="pxe-group"><h3>{T("editor.sign")}</h3>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Stepper label="x" value={room.sign?.[0] ?? 0} step={8} onChange={(n) => upd("rooms", room.id, (r) => { r.sign = [n, r.sign?.[1] ?? 0]; }, `r-${room.id}-sx`)} />
-                      <Stepper label="y" value={room.sign?.[1] ?? 0} step={8} onChange={(n) => upd("rooms", room.id, (r) => { r.sign = [r.sign?.[0] ?? 0, n]; }, `r-${room.id}-sy`)} />
+                      <Stepper label="x" value={(room.sign ?? defaultSign(room.rects[0]))[0]} step={8} onChange={(n) => upd("rooms", room.id, (r) => { r.sign = [n, (r.sign ?? defaultSign(r.rects[0]))[1]]; }, `r-${room.id}-sx`)} />
+                      <Stepper label="y" value={(room.sign ?? defaultSign(room.rects[0]))[1]} step={8} onChange={(n) => upd("rooms", room.id, (r) => { r.sign = [(r.sign ?? defaultSign(r.rects[0]))[0], n]; }, `r-${room.id}-sy`)} />
                     </div>
                     <div className="mt-2 flex gap-2">
                       <button className={`pxe-btn pxe-btn-sm ${signPick ? "pxe-btn-primary" : ""}`} onClick={() => setSignPick(!signPick)}>{T("editor.pickSign")}</button>
@@ -803,9 +873,9 @@ export function EditorClient({ store, locale, backHref, previewSrc = "/editor/pr
                     <div className="mt-3 flex items-center gap-3"><Thumb id={item.type} sheet={thumbs} base={thumbsBase} size={52} /><div><b className="text-[14px]">{lab("catalog.", item.type)}</b><div className="pxe-hint !mt-0">{catName(catKey(item.type))}</div></div></div>
                     <Field label={T("editor.dir")}>
                       <div className="flex items-center gap-2">
-                        <button className="pxe-iconbtn border-[var(--line)]" aria-label={T("editor.rotateL")} title={`${T("editor.rotateL")} (Shift+R)`} disabled={dirs.length < 2} onClick={() => rotate(-1)}><Icon n="rotccw" /></button>
+                        <button className="pxe-iconbtn border-[var(--line)]" aria-label={T("editor.rotateL")} title={`${T("editor.rotateL")} (Shift+R)`} disabled={dirs.length < 2} onClick={() => rotate(1)}><Icon n="rotccw" /></button>
                         <DirArrow angle={DIR_ANGLE[item.dir] ?? 0} />
-                        <button className="pxe-iconbtn border-[var(--line)]" aria-label={T("editor.rotateR")} title={`${T("editor.rotateR")} (R)`} disabled={dirs.length < 2} onClick={() => rotate(1)}><Icon n="rotcw" /></button>
+                        <button className="pxe-iconbtn border-[var(--line)]" aria-label={T("editor.rotateR")} title={`${T("editor.rotateR")} (R)`} disabled={dirs.length < 2} onClick={() => rotate(-1)}><Icon n="rotcw" /></button>
                       </div>
                     </Field>
                     <div className="pxe-group"><h3>{T("editor.group.position")}</h3>

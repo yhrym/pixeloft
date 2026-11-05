@@ -22,7 +22,6 @@ await build({
 });
 await cp("site/assets/site.css", `${out}/assets/site.css`);
 await cp("src/app/icon.svg", `${out}/assets/icon.svg`);
-await cp("public/catalog-thumbs.png", `${out}/assets/img/catalog-thumbs.png`);
 for (const f of await readdir("docs/images")) await cp(`docs/images/${f}`, `${out}/assets/img/${f}`);
 for (const f of await readdir("site/assets/img").catch(() => [])) await cp(`site/assets/img/${f}`, `${out}/assets/img/${f}`);
 for (const l of LANGS) await cp(`maps/sample.${l}.json`, `${out}/assets/sample.${l}.json`);
@@ -33,14 +32,14 @@ const UI = {
   ja: {
     name: "日本語", other: "en", otherName: "English", docs: "ドキュメント", editor: "エディタ", search: "検索", searchPh: "ドキュメントを検索", noHit: "見つかりませんでした",
     theme: "テーマを切り替え", menu: "ページ一覧", toc: "このページの内容", prev: "前へ", next: "次へ", copy: "コピー", copied: "コピーしました", lang: "言語",
-    siteDesc: "席に座るタイプの、ドット絵のバーチャルオフィス。セルフホストできるOSSで、間取りはブラウザで作れます。", skip: "本文へ移動", status: "pixeloft docs", license: "AGPL-3.0-only",
-    editorOpen: "ブラウザでマップを作る →", docker: "Dockerで動かす", github: "GitHub ↗",
+    siteDesc: "席に座るとチームの居場所とステータスが見えて、「ちょっといい？」やチャットで声をかけられる、セルフホストのバーチャルオフィスです。", skip: "本文へ移動", status: "pixeloft docs", license: "AGPL-3.0-only",
+    editorOpen: "ブラウザでオフィスの間取りを作る →", docker: "Dockerで動かす", github: "GitHub ↗",
   },
   en: {
     name: "English", other: "ja", otherName: "日本語", docs: "Docs", editor: "Editor", search: "Search", searchPh: "Search the docs", noHit: "No results",
     theme: "Toggle theme", menu: "Pages", toc: "On this page", prev: "Previous", next: "Next", copy: "Copy", copied: "Copied", lang: "Language",
-    siteDesc: "A seat-based virtual office in pixel art. Self-hosted, open source, with a floor-plan editor that runs in your browser.", skip: "Skip to content", status: "pixeloft docs", license: "AGPL-3.0-only",
-    editorOpen: "Build your map in the browser →", docker: "Run it with Docker", github: "GitHub ↗",
+    siteDesc: "A self-hosted virtual office where you can see where teammates are and what they're up to, and reach them with \"Got a minute?\" or room chat.", skip: "Skip to content", status: "pixeloft docs", license: "AGPL-3.0-only",
+    editorOpen: "Plan your office layout in the browser →", docker: "Run it with Docker", github: "GitHub ↗",
   },
 };
 
@@ -208,42 +207,50 @@ ${p.html}
 // ---- ホーム ----
 const HOME = {
   ja: {
-    eyebrow: "セルフホストできるOSS · ドット絵 · 席に座る",
-    h1a: "席に座れば、", h1b: "そこがオフィス。",
-    lead: "歩き回らないバーチャルオフィスです。席を選んで座るだけで、誰がどの部屋にいるかが一目で分かります。docker compose up 1回で立ち上がり、間取りはブラウザで描けます。",
-    caption: "動いているのは本物の描画エンジンです。人はみんな架空です。",
-    s1: { k: "仕組み", h: "歩かない。だから、ちらっと見るだけで足りる。", paras: [
-      ["席に座る。", "席を選んだら、そこにいるだけです。キャラクターが歩くのは席を移るときだけ。操作するものがないので、画面は横目で見られます。"],
-      ["ポーリングで動く。", "表示中は4秒ごとに状態を取りに行き、隠れている間は60秒ごとのハートビートだけを送ります。WebSocketを使わないので、どんなリバースプロキシの後ろでも設定なしで動きます。"],
-      ["監視はしない。", "見えるのは、誰がどの部屋にいるかと、作業中・集中・休憩・会議中のステータスだけ。席に何分座っているかも、最後に何かした時刻も出しません。この先も出しません。"],
-    ], alt: "サンプルのオフィスの画面。左上にアプリ名、右上にメニュー、左下に自分のカード" },
-    s2: { k: "マップエディタ", h: "Dockerを立てる前に、間取りだけ先に作れる。", p: "上から見た2Dの図面で部屋・壁・扉・置き物を配置すると、本番と同じエンジンで描いたアイソメのプレビューがその場で更新されます。下書きはブラウザの中だけに保存され、サーバーには何も送りません。", p2: "できあがったらJSONで書き出して、自分のインスタンスのエディタで読み込み、公開します。", cta: "ブラウザでマップを作る →", alt: "マップエディタの画面" },
-    s3: { k: "着せ替えとパーツ", h: "髪も服も、色は自由。形は自分で描ける。", p: "髪・服・ズボンの色は自由に選べます。さらにドット絵のエディタで、髪型・服・小物を自分で描いて追加できます。描いたパーツは全員に共有され、着せ替えのパネルから誰でも使えます。", p2: "机にも飾りを置けるので、同じ席でも人によって雰囲気が変わります。", link: "着せ替えとパーツの使い方", alt: "席についているキャラクターの拡大" },
-    s4: { k: "はじめかた", h: "3つのコマンドで、自分のオフィス。", steps: [
+    eyebrow: "OSS・セルフホストのバーチャルオフィス",
+    h1a: "自分でつくる", h1b: "バーチャルオフィス",
+    lead: "あなたの会社をバーチャルオフィスにしましょう。席に座ると、誰がどの部屋にいて、いま話しかけていいかがわかります。",
+    ctaNote: "登録なしで、サンプルの間取りをそのまま編集できます（パソコン向け）。着席やチャットは、Dockerで起動したオフィスで試せます。",
+    caption: "この画面はアプリと同じ描画エンジンで動いています。人物はすべて架空です。",
+    legend: ["作業中", "集中", "休憩", "会議中"],
+    s1: { k: "オフィスでできること", h: "席を見て、呼んで、そのまま話す", paras: [
+      ["名札の色で、話しかけていいかわかる", "名札の四角の色が、作業中・集中・休憩・会議中を表します。会議室にいる間は会議中、休憩の部屋にいる間は休憩になり、それ以外は自分で切り替えます。"],
+      ["「ちょっといい？」で呼ぶと、席に来てくれる", "相手の画面に呼び出しが出ます。「いま行きます」と返した人は、あなたの部屋の空いている席に移ってきます。"],
+      ["チャットと通話は部屋ごと", "部屋のチャットで話せます。通話は部屋に設定した会議のリンクを開くので、MeetやZoomなど今使っているツールをそのまま使えます。"],
+      ["座っている時間は表示しない", "座っている時間や、最後に操作した時刻は表示しません。オフィスのタブを15分間操作しないと、離席の表示に変わるだけです。"],
+    ], alt: "島の机に座っている同僚の名札。名前の左の四角の色がステータス" },
+    s2: { k: "マップエディタ", h: "間取りは、ブラウザでドラッグして作る", p: "サンプルの机を動かすと、右の立体プレビューにも反映されます。下書きはこのブラウザだけに保存されます。「JSON書き出し」で保存したマップは、自分で起動したPixeloftの/setupか/editorで読み込めます。", use: "作ったマップをオフィスで使う", useAnchor: "ブラウザ版とインスタンスの間でjsonを渡す", steps: "左で置き物を選ぶ → 図面に置く → 右で仕上がりを見る", cta: "ブラウザでマップを作る →", alt: "マップエディタの画面" },
+    s3: { k: "着せ替えとパーツ", h: "髪型も服も、ドット絵で描ける", p: "髪・服・ズボンの色は自由に選べます。髪型や服、小物はドット絵のエディタで描いて追加できます。描いたパーツはオフィスの全員で共有され、誰でも着替えに使えます。", p2: "机にも飾りを置けるので、同じ形の席でも人によって見た目が変わります。", link: "着せ替えとパーツの使い方", alt: "席についているキャラクターの拡大", alt2: "ドット絵のパーツエディタ" },
+    s4: { k: "はじめかた", h: "サンプルのオフィスを起動する", need: "用意するもの：Git、Docker（Compose付き）、ブラウザ", steps: [
       ["クローンする", "git clone https://github.com/yhrym/pixeloft.git\ncd pixeloft"],
       ["起動する", "docker compose up -d"],
-      ["開いて、サンプルで始める", "# ブラウザで開く\nhttp://localhost:3000/setup"],
-    ], note: "/setupで最初の管理者を作り、マップは「サンプルを使う」を選べばすぐ試せます。", more: "くわしい手順" },
-    footerNote: "席に座るタイプのバーチャルオフィス。AGPL-3.0-onlyのOSSです。",
+      ["/setupを開く", "", "http://localhost:3000/setup", "サーバーで起動した場合は、そのサーバーのURLに/setupを付けて開きます。"],
+      ["管理者を作って入室する", "", "", "", "マップは「サンプルを使う」を選ぶ → 作った管理者でログインして「入室する」 → 空いている席を選ぶか「おまかせで座る」"],
+    ], facts: ["利用料はかかりません（AGPL-3.0-only）。サーバーを借りる場合は、その費用だけかかります。", "アプリとPostgreSQLの2つのコンテナで動き、データは自分のサーバーのDockerボリュームに保存されます。", "メンバーは招待リンクで追加し、IDとパスワードでログインします。メールアドレスは要りません。退職した人のアカウントは管理者が止められます。", "オフィスにはスマホのブラウザからも入れます。"], more: "くわしい手順" },
+    footerNote: "席に座るタイプのバーチャルオフィス。AGPL-3.0-onlyのオープンソースで、利用料はかかりません。",
   },
   en: {
-    eyebrow: "self-hosted · open source · pixel art",
-    h1a: "Pick a seat.", h1b: "You're in the office.",
-    lead: "A virtual office where nobody walks around. Choose a desk, sit down, and everyone can see at a glance who is in which room. One docker compose up starts it, and you draw the floor plan in your browser.",
+    eyebrow: "Self-hosted virtual office · OSS",
+    h1a: "Build your own", h1b: "virtual office",
+    lead: "Turn your company into a virtual office. Take a seat, and everyone can see who is in which room and whether now is a good time to talk.",
+    ctaNote: "No sign-up: edit the sample floor plan right away (best on a computer). To sit down and chat, run the office with Docker.",
     caption: "This is the real rendering engine. Every person here is fictional.",
-    s1: { k: "How it works", h: "No walking, so a glance is all it takes.", paras: [
-      ["Seats, not avatars on a stroll.", "You pick a seat and stay there. Characters only walk when someone moves to another seat. There is nothing to steer, so the screen is fine in the corner of your eye."],
-      ["Polling, not WebSocket.", "The page polls every 4 seconds while it is visible and sends a heartbeat every 60 seconds while hidden. It works behind any reverse proxy with no special configuration."],
-      ["Presence without surveillance.", "You see who is in which room and their status: working, focus, break, in a meeting. You do not see how long someone has been at their desk or when they last did anything, and you never will."],
-    ], alt: "The sample office: app name at the top left, menu at the top right, your own card at the bottom left" },
-    s2: { k: "Map editor", h: "Draw the floor plan before you run anything.", p: "Lay out rooms, walls, doors and furniture on a top-down 2D plan, and an isometric preview drawn by the same engine as the app updates as you go. Your draft lives in the browser only. Nothing is sent to a server.", p2: "When it looks right, export the JSON, import it in your own instance's editor and publish.", cta: "Build your map in the browser →", alt: "The map editor" },
-    s3: { k: "Wardrobe and parts", h: "Any color you like, and shapes you draw yourself.", p: "Pick free colors for hair, clothes and trousers. Then open the pixel editor and draw your own hairstyles, outfits and accessories. Parts you draw are shared with everyone and show up in the dress-up panel.", p2: "Desks get decorations too, so two people at the same kind of seat still look different.", link: "How wardrobe and parts work", alt: "Close-up of seated characters" },
-    s4: { k: "Quick start", h: "Three commands to your own office.", steps: [
+    legend: ["Working", "Focus", "Break", "In a meeting"],
+    s1: { k: "Inside the office", h: "See who's free, call them over, and talk.", paras: [
+      ["Name tags show if now is a good time", "The colored square on each name tag shows working, focus, break or in a meeting. It switches to in a meeting while you're in a meeting room and to break while you're in a break room. Otherwise you set it yourself."],
+      ["Send \"Got a minute?\" and they come to you", "A request pops up on their screen. If they reply \"On my way\", they move to a free seat in your room."],
+      ["Chat and calls belong to each room", "Chat with everyone in the room. Calls open the meeting link set for the room, so you keep using Meet, Zoom or whatever you already have."],
+      ["Time at your seat is never shown", "The office never shows how long you've been at your seat or when you last interacted. If you don't touch the office tab for 15 minutes, you're simply shown as away."],
+    ], alt: "Name tags of teammates at an island desk; the square left of each name is their status" },
+    s2: { k: "Map editor", h: "Lay out the office in your browser.", p: "Move a desk in the sample and the isometric preview on the right follows. Your draft is saved only in this browser. A map saved with \"Export JSON\" can be loaded on /setup or /editor of your own Pixeloft.", use: "Use your map in the office", useAnchor: "moving-json-between-the-browser-version-and-your-instance", steps: "Pick furniture on the left → place it on the plan → check the result on the right", cta: "Build your map in the browser →", alt: "The map editor" },
+    s3: { k: "Wardrobe and parts", h: "Draw your own hair and outfits in pixel art.", p: "Choose any color for hair, clothes and trousers. Then open the pixel editor and draw your own hairstyles, outfits and accessories. Parts you draw are shared with everyone and show up in the dress-up panel.", p2: "Desks get decorations too, so two people at the same kind of seat still look different.", link: "How wardrobe and parts work", alt: "Close-up of seated characters", alt2: "The pixel-art parts editor" },
+    s4: { k: "Quick start", h: "Start the sample office", need: "You need: Git, Docker (with Compose) and a browser", steps: [
       ["Clone", "git clone https://github.com/yhrym/pixeloft.git\ncd pixeloft"],
       ["Start", "docker compose up -d"],
-      ["Open it and start from the sample", "# open in your browser\nhttp://localhost:3000/setup"],
-    ], note: "Create the first admin on /setup and pick \"Use the sample\" for the map to try it right away.", more: "Full instructions" },
-    footerNote: "A seat-based virtual office. Open source under AGPL-3.0-only.",
+      ["Open /setup", "", "http://localhost:3000/setup", "If you started it on a server, open that server's URL followed by /setup."],
+      ["Create the admin and enter", "", "", "", "Pick \"Use the sample\" for the map → log in as that admin and press \"Enter\" → choose a free seat or press \"Seat me anywhere\""],
+    ], facts: ["No usage fee (AGPL-3.0-only). If you rent a server, that is the only cost.", "Runs as two containers, the app and PostgreSQL; data stays in a Docker volume on your own server.", "Add members with invite links; they log in with an ID and password. No email addresses needed. Admins can disable the account of someone who leaves.", "Members can also enter the office from a phone browser."], more: "Full instructions" },
+    footerNote: "A seat-based virtual office. Open source under AGPL-3.0-only, with no usage fee.",
   },
 };
 
@@ -259,7 +266,8 @@ for (const lang of LANGS) {
 <p class="eyebrow">${h.eyebrow}</p>
 <h1><span>${h.h1a}</span><span class="acc">${h.h1b}</span></h1>
 <p class="lead">${h.lead}</p>
-<div class="cta-row"><a class="cta" href="${base}editor/">${u.editorOpen}</a><a class="quiet" href="${gs}">${u.docker}</a><a class="quiet" href="${GITHUB}" rel="noopener">${u.github}</a></div>
+<div class="cta-row"><a class="cta" href="${base}editor/">${u.editorOpen}</a><a class="cta ghost" href="#start">${u.docker}</a></div>
+<p class="cta-note">${h.ctaNote}</p>
 </div>
 <p class="hero-cap" aria-hidden="true">${h.caption}</p>
 </section>
@@ -269,29 +277,30 @@ for (const lang of LANGS) {
 <div class="txt"><p class="kicker">${h.s1.k}</p><h2>${h.s1.h}</h2>
 ${h.s1.paras.map(([a, b]) => `<div class="para"><h3>${a}</h3><p>${b}</p></div>`).join("")}
 </div>
-<figure class="vis sticky"><img src="${base}assets/img/office-hud.png" width="1200" height="760" alt="${h.s1.alt}" loading="lazy"></figure>
+<figure class="vis sticky"><img src="${base}assets/img/office-close-${lang}.png" width="600" height="380" alt="${h.s1.alt}" loading="lazy">
+<ul class="legend">${h.legend.map((t, i) => `<li><i class="sq ${["work", "focus", "break", "meet"][i]}"></i>${t}</li>`).join("")}</ul></figure>
 </div>
 </section>
 <section class="band alt" id="editor">
 <div class="band-in wide">
-<div class="txt center"><p class="kicker">${h.s2.k}</p><h2>${h.s2.h}</h2><p>${h.s2.p}</p><p>${h.s2.p2}</p><p><a class="cta" href="${base}editor/">${h.s2.cta}</a></p></div>
-<figure class="vis shot"><img src="${base}assets/img/editor-${lang}.png" width="1440" height="900" alt="${h.s2.alt}" loading="lazy"></figure>
-<div class="thumbs" aria-hidden="true"></div>
+<div class="txt center"><p class="kicker">${h.s2.k}</p><h2>${h.s2.h}</h2><p>${h.s2.p}</p><div class="cta-row"><a class="cta" href="${base}editor/">${h.s2.cta}</a><a class="more" href="${base}${lang}/map-editor/#${h.s2.useAnchor}">${h.s2.use} →</a></div></div>
+<figure class="vis shot"><img src="${base}assets/img/editor-${lang}.png" width="1440" height="900" alt="${h.s2.alt}" loading="lazy"><figcaption>${h.s2.steps}</figcaption></figure>
 </div>
 </section>
 <section class="band" id="wardrobe">
 <div class="band-in split rev">
-<figure class="vis crop"><div class="crop-img" role="img" aria-label="${h.s3.alt}"></div></figure>
+<figure class="vis crop"><div class="crop-img" role="img" aria-label="${h.s3.alt}"></div><img class="parts-img" src="${base}assets/img/parts-editor-${lang}.png" width="1200" height="760" alt="${h.s3.alt2}" loading="lazy"></figure>
 <div class="txt"><p class="kicker">${h.s3.k}</p><h2>${h.s3.h}</h2><p>${h.s3.p}</p><p>${h.s3.p2}</p><p><a class="more" href="${base}${lang}/wardrobe/">${h.s3.link} →</a></p></div>
 </div>
 </section>
 <section class="band alt" id="start">
 <div class="band-in">
-<div class="txt center"><p class="kicker">${h.s4.k}</p><h2>${h.s4.h}</h2></div>
+<div class="txt center"><p class="kicker">${h.s4.k}</p><h2>${h.s4.h}</h2><p class="need">${h.s4.need}</p></div>
 <ol class="steps">
-${h.s4.steps.map(([t, c], i) => `<li><div class="num" aria-hidden="true">${i + 1}</div><div class="step-body"><h3>${t}</h3>${code(c)}</div></li>`).join("\n")}
+${h.s4.steps.map(([t, c, link, sub, flow], i) => `<li><div class="num" aria-hidden="true">${i + 1}</div><div class="step-body"><h3>${t}</h3>${c ? code(c) : ""}${link ? `<p class="step-link"><a href="${link}">${link}</a></p>` : ""}${sub ? `<p class="step-sub">${sub}</p>` : ""}${flow ? `<p class="step-flow">${flow}</p>` : ""}</div></li>`).join("\n")}
 </ol>
-<p class="steps-note">${h.s4.note} <a class="more" href="${gs}">${h.s4.more} →</a></p>
+<div class="start-facts"><ul>${h.s4.facts.map((f) => `<li>${f}</li>`).join("")}</ul>
+<p><a class="more" href="${gs}">${h.s4.more} →</a></p></div>
 </div>
 </section>
 </main>
@@ -304,7 +313,7 @@ ${h.s4.steps.map(([t, c], i) => `<li><div class="num" aria-hidden="true">${i + 1
 </footer>`;
   await mkdir(`${out}/${lang}`, { recursive: true });
   await writeFile(`${out}/${lang}/index.html`, shell({
-    lang, base, path, title: lang === "ja" ? "Pixeloft | 席に座るバーチャルオフィス" : "Pixeloft | A seat-based virtual office", desc: u.siteDesc, body, home: true,
+    lang, base, path, title: lang === "ja" ? "Pixeloft | 誰がいるか見えるバーチャルオフィス" : "Pixeloft | See who's around in a virtual office", desc: u.siteDesc, body, home: true,
     js: `<script type="module" src="${base}assets/hero.js"></script>`,
   }));
 }
@@ -324,7 +333,7 @@ await writeFile(`${out}/index.html`, `<!doctype html>
 <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
 <link rel="alternate" hreflang="ja" href="ja/">
 <link rel="alternate" hreflang="en" href="en/">
-<style>body{margin:0;min-height:100vh;display:grid;place-content:center;gap:12px;background:#0c1226;color:#fbf9f3;font:16px system-ui,sans-serif;text-align:center}a{color:#f4c651;font-size:20px}</style>
+<style>body{margin:0;min-height:100vh;display:grid;place-content:center;gap:12px;background:#0c1226;color:#f4f6fb;font:16px system-ui,sans-serif;text-align:center}a{color:#f4c651;font-size:20px}</style>
 <script>location.replace((navigator.language||"").toLowerCase().indexOf("ja")===0?"ja/":"en/")</script>
 </head>
 <body>

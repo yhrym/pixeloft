@@ -1,0 +1,9 @@
+{
+  "plugin.hello.menu": "Hello window",
+  "plugin.hello.count": "Presses: {n}",
+  "plugin.hello.placed": "Placed: {n}",
+  "plugin.hello.press": "Press",
+  "plugin.hello.reset": "Reset",
+  "plugin.hello.adminOnly": "Only admins can reset.",
+  "catalog.hello:counter": "Hello item"
+}

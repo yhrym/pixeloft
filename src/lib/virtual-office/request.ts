@@ -19,6 +19,8 @@ export async function runVo<T>(
   request: Request,
   mutate: boolean,
   run: (user: User, locale: Locale, body: unknown, since: number | undefined) => Promise<T>,
+  /** falseなら?since=を解析しない(プラグインの?since=は本体の意味ではないので、整数でなくても通す) */
+  withSince = true,
 ): Promise<Response> {
   if (mutate) {
     const denied = csrfGuard(request);
@@ -42,7 +44,7 @@ export async function runVo<T>(
   }
 
   try {
-    const since = parseSince(new URL(request.url).searchParams.get("since"));
+    const since = withSince ? parseSince(new URL(request.url).searchParams.get("since")) : undefined;
     return NextResponse.json(await run(user, locale, body, since));
   } catch (error) {
     if (error instanceof VoError) return errorJson(locale, error.status, error.message, error.vars);

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import "@fontsource/dotgothic16/400.css";
 import "@/engine/office.css";
 import type { OfficeMap } from "@/engine/map.js";
@@ -9,6 +9,7 @@ import type { OfficeHandle, OfficeOptions, OfficePart, OfficeWeather } from "@/e
 import { t as tr, type Locale } from "@/i18n";
 import { canPush, subscribeToPush } from "@/lib/push-client";
 import { withIdle } from "@/lib/virtual-office/last-touch";
+import { setupPlugins } from "./plugins";
 import type { VoAction, VoState } from "@/lib/virtual-office/types";
 
 /** 画面の言語の文言(サーバーのページがt()で作って渡す) */
@@ -24,7 +25,7 @@ const POLL_MS = 4000;
 const HEARTBEAT_MS = 60_000;
 
 /** APIの呼び出し。失敗はサーバーの `{ error }`(受け取る人の言語)を message、HTTPのステータスを status にした Error。CSRFは同じオリジンの fetch で足りる */
-async function request(path: string, msgs: OfficeMsgs, init?: RequestInit): Promise<VoState> {
+async function request<T = VoState>(path: string, msgs: OfficeMsgs, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, { cache: "no-store", ...init, headers: { accept: "application/json", ...init?.headers } });
@@ -35,7 +36,7 @@ async function request(path: string, msgs: OfficeMsgs, init?: RequestInit): Prom
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   // status はエンジンが見る(返事しようとした声かけがもう無い404など)
   if (!res.ok) throw Object.assign(new Error(typeof body.error === "string" ? body.error : msgs.error), { status: res.status });
-  return body as VoState;
+  return body as T;
 }
 
 /** バーチャルオフィスの画面。描画とHUDはエンジン、ここはポーリングと操作の送信だけ */
@@ -65,6 +66,8 @@ export function OfficeClient({
   const handleRef = useRef<OfficeHandle | null>(null);
   const latestState = useRef(initial);
   const refreshRef = useRef<() => void>(() => {});
+  // プラグインの onState に状態を流す(エンジンを作ったあとに入る)
+  const emitRef = useRef<(state: VoState) => void>(() => {});
   // みんなのパーツ: 開いたときと、state の partsVersion が変わったときに取り直してエンジンに渡す(4秒ごとの state には絵を入れない)
   const partsRef = useRef<OfficePart[] | null>(null);
   const partsVer = useRef(initial.partsVersion);
@@ -117,7 +120,7 @@ export function OfficeClient({
         if (stopped) return;
         last = Date.now();
         failures = 0;
-        if (acceptState(state)) handleRef.current?.update(state);
+        if (acceptState(state)) { handleRef.current?.update(state); emitRef.current(state); }
         schedule(live() ? POLL_MS : HEARTBEAT_MS);
       } catch (error) {
         if (stopped || (error instanceof DOMException && error.name === "AbortError")) return;
@@ -157,6 +160,23 @@ export function OfficeClient({
     return acceptState(state) ? state : latestState.current;
   }, [acceptState, msgs]);
 
+  // プラグインの操作。返ってきた state はすぐエンジンと onState に流す
+  const pluginSend = useCallback(async (id: string, action: string, payload?: unknown) => {
+    const res = await request<{ result: unknown; state?: unknown }>(`/api/office/plugins/${encodeURIComponent(id)}`, msgs, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action, payload }),
+    });
+    if ("state" in res) { // nullを返したときも反映する(無いのはプラグインに state が無い・undefined・投げた・遅いとき)
+      latestState.current = { ...latestState.current, plugins: { ...latestState.current.plugins, [id]: res.state } };
+      handleRef.current?.setPluginState(id, res.state);
+      emitRef.current(latestState.current);
+    }
+    return res.result;
+  }, [msgs]);
+  const pluginGet = useCallback((id: string, params?: Record<string, string>) =>
+    request<unknown>(`/api/office/plugins/${encodeURIComponent(id)}?${new URLSearchParams(params)}`, msgs), [msgs]);
+
   const onHandle = useCallback((handle: OfficeHandle | null) => {
     handleRef.current = handle;
     if (handle && partsRef.current) handle.setParts(partsRef.current); // エンジンより先に取れていた分
@@ -166,14 +186,24 @@ export function OfficeClient({
   const enablePush = vapidPublicKey && canPush()
     ? () => subscribeToPush(vapidPublicKey, { denied: msgs.pushDenied, saveFailed: msgs.pushSaveFailed })
     : undefined;
-  const [options] = useState<OfficeOptions>(() => ({
-    initial, weather, timeZone, workEndHour, send, t: (key, vars) => tr(locale, key, vars), enablePush, map, appName,
-    menu: menu.map(({ label, href, post }) => ({
-      label,
-      href,
-      onClick: post ? () => { void fetch(post.path, { method: "POST", body: new URLSearchParams(post.form) }).finally(() => location.assign(post.then)); } : undefined,
-    })),
-  }));
+  // エンジンを作るとき(ブラウザの中だけ)に呼ぶ。プラグインの setup はその前に走らせ、menu・ボタン・dock を設定に入れる
+  const makeOptions = () => {
+    const p = setupPlugins({ locale, state: () => latestState.current, send: pluginSend, get: pluginGet });
+    emitRef.current = p.emit;
+    const options: OfficeOptions = {
+      initial, weather, timeZone, workEndHour, send, t: (key, vars) => tr(locale, key, vars), enablePush, map, appName,
+      menu: [
+        ...menu.map(({ label, href, post }) => ({
+          label,
+          href,
+          onClick: post ? () => { void fetch(post.path, { method: "POST", body: new URLSearchParams(post.form) }).finally(() => location.assign(post.then)); } : undefined,
+        })),
+        ...p.menu,
+      ],
+      itemButtons: p.itemButtons, onItemClick: p.onItemClick, dock: p.dock,
+    };
+    return { options, dispose: () => { p.dispose(); emitRef.current = () => {}; } };
+  };
 
-  return <OfficeStage options={options} onHandle={onHandle} />;
+  return <OfficeStage make={makeOptions} onHandle={onHandle} />;
 }

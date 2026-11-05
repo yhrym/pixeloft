@@ -1,0 +1,102 @@
+/* アカウント・管理ページの見た目。色はマップエディタ(editor.css)に合わせる。
+   外枠はmain.pgに限る(エンジンの案内カードも<span class="pg">を使い、.pgだと高さ100vhの箱になってHUDを覆った) */
+main.pg {
+  --navy: #34446b; --navy-d: #26335a; --navy-t: #e9edf7; --navy-m: #c9d2e8;
+  --ink: #1e2433; --ink2: #566077; --ink3: #8892a6; --line: #e2e6ef; --bg: #f4f6fa;
+  --ok: #17895a; --ok-bg: #e2f5ec; --err: #c62e45; --err-bg: #fde8eb;
+  --sh: 0 1px 2px rgba(30, 36, 51, .06), 0 6px 18px rgba(30, 36, 51, .09);
+  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.55;
+  min-height: 100vh; padding: 16px; overflow-wrap: anywhere;
+}
+main.pg * { box-sizing: border-box; }
+main.pg h1, main.pg h2 { margin: 0; line-height: 1.35; }
+main.pg :focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+.pg-wordmark { display: inline-flex; align-items: center; gap: 8px; font-family: "DotGothic16", system-ui, sans-serif; font-size: 22px; color: var(--navy); letter-spacing: .02em; line-height: 1; }
+.pg-wordmark img { width: 24px; height: 24px; image-rendering: pixelated; }
+
+/* 認証ページ: 中央のカード */
+.pg-auth { display: flex; flex-direction: column; align-items: center; padding-top: 8vh; }
+.pg-auth .pg-wordmark { margin-bottom: 20px; font-size: 26px; }
+.pg-auth .pg-card { width: 100%; max-width: 420px; padding: 24px; }
+.pg-auth .pg-btn-primary { width: 100%; margin-top: 20px; }
+
+/* 管理ページ: 幅720pxとトップバー */
+.pg-admin { max-width: 720px; margin: 0 auto; }
+.pg-wide { max-width: 1024px; }
+.pg-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.pg-back { color: var(--navy); text-decoration: none; font-weight: 500; }
+.pg-back:hover { text-decoration: underline; }
+.pg-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.pg-sub { color: var(--ink2); margin: 0 0 16px; font-size: 13px; }
+
+.pg-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--sh); padding: 16px; margin-bottom: 16px; }
+.pg-card h2, .pg-card legend, .pg-card-title { font-size: 15px; font-weight: 700; padding: 0; margin-bottom: 12px; }
+.pg-card fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.pg-card fieldset + *, .pg-card .pg-field + .pg-field, .pg-card .pg-field + fieldset, .pg-card fieldset + fieldset { margin-top: 16px; }
+
+.pg-field { display: block; }
+.pg-field + .pg-field { margin-top: 14px; }
+.pg-label { display: block; font-weight: 600; font-size: 13px; }
+.pg-input { display: block; width: 100%; height: 40px; margin-top: 6px; padding: 0 12px; border: 1px solid var(--navy-m); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; font-size: 16px; }
+.pg-input:focus { outline: 2px solid var(--navy); outline-offset: 0; border-color: var(--navy); }
+.pg-hint { display: block; margin-top: 4px; font-size: 12px; color: var(--ink2); }
+.pg-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.pg-row > * { flex: 1 1 140px; min-width: 0; }
+.pg-radio { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.pg-radio input { width: 16px; height: 16px; accent-color: var(--navy); }
+
+.pg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap; transition: background .12s, border-color .12s; }
+.pg-btn:hover { background: var(--navy-t); border-color: var(--navy-m); }
+.pg-btn-primary { background: var(--navy); border-color: var(--navy); color: #fff; }
+.pg-btn-primary:hover { background: var(--navy-d); border-color: var(--navy-d); }
+.pg-btn-sm { height: 30px; padding: 0 10px; font-size: 12px; border-radius: 8px; }
+.pg-btn-danger { color: var(--err); }
+.pg-btn-danger:hover { background: var(--err-bg); border-color: #f3b9c2; }
+
+.pg-error { margin: 0 0 16px; padding: 10px 12px; border-radius: 8px; background: var(--err-bg); border: 1px solid #f3b9c2; color: var(--err); font-size: 13px; }
+.pg-ok { margin: 0 0 16px; padding: 10px 12px; border-radius: 8px; background: var(--ok-bg); color: var(--ok); font-size: 13px; }
+.pg-muted { color: var(--ink2); }
+
+.pg-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--navy-t); color: var(--navy); font-size: 11px; font-weight: 600; line-height: 1.7; }
+.pg-badge-ok { background: var(--ok-bg); color: var(--ok); }
+.pg-badge-off { background: var(--err-bg); color: var(--err); }
+
+.pg-list { list-style: none; margin: 0; padding: 0; }
+.pg-list > li { padding: 12px 0; border-top: 1px solid var(--line); }
+.pg-list > li:first-child { border-top: 0; padding-top: 0; }
+.pg-member-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pg-member-head b { font-size: 14px; }
+.pg-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--ink2); }
+.pg-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+.pg-copy { display: flex; gap: 8px; }
+.pg-copy .pg-input { margin-top: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+
+.pg-parts { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.pg-part { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: #fff; max-width: 100%; }
+.pg-part-name { font-weight: 700; margin-top: 4px; }
+.pg-link { color: var(--navy); font-size: 12px; font-weight: 500; text-decoration: none; background: none; border: 0; padding: 0; font-family: inherit; cursor: pointer; }
+.pg-link:hover { text-decoration: underline; }
+.pg-link-danger { color: var(--err); }
+
+@media (pointer: coarse) { .pg-btn-sm { min-height: 40px; } }
+/* fieldsetをカードにしたとき、legendは枠の内側に入れる */
+fieldset.pg-card { min-width: 0; }
+fieldset.pg-card > legend { float: left; width: 100%; margin-bottom: 12px; }
+fieldset.pg-card > legend + * { clear: both; }
+body:has(main.pg) { background: #f4f6fa; }
+.pg-card .pg-row > .pg-field { margin-top: 0; }
+.pg-radio:first-of-type { margin-top: 4px; }
+
+/* パーツエディタ */
+.pg-ed { display: flex; flex-wrap: wrap; gap: 24px; }
+.pg-ed-side { flex: 1 1 256px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.pg-num { width: 80px; margin-top: 4px; }
+.pg-seg { display: inline-flex; border: 1px solid var(--navy-m); border-radius: 8px; overflow: hidden; }
+.pg-seg-btn { height: 30px; padding: 0 12px; border: 0; border-left: 1px solid var(--navy-m); background: #fff; color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.pg-seg-btn:first-child { border-left: 0; }
+.pg-seg-btn[aria-pressed="true"] { background: var(--navy); color: #fff; }
+@media (max-width: 420px) { .pg-ed { padding: 10px; } }
+@media (pointer: coarse) { .pg-seg-btn { min-height: 40px; } }
